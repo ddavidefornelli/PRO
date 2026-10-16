@@ -56,9 +56,7 @@ p { line-height: 1.6; }
 .task-list { list-style: none; padding: 0; display: grid; gap: 12px; margin: 28px 0; }
 .task { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
 .task p { margin: 0; }
-.task-estimate { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-.task-estimate input { width: 90px; }
-.task-estimate button { font-size: 13px; }
+.task-estimate { flex: 0 0 44px; align-self: flex-end; }
 .task.is-priority { border-color: #c99b38; }
 .task .task-crown { position: absolute; top: -14px; left: -12px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 23px; transform: rotate(-22deg); opacity: 0; transition: opacity .15s; }
 .task:hover .task-crown, .task:focus-within .task-crown, .task.is-priority .task-crown { opacity: 1; }
@@ -67,7 +65,7 @@ p { line-height: 1.6; }
 .task-crown:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (hover: none) { .task .task-crown { opacity: 1; } }
 .task-details { flex: 1; min-width: 0; }
-.task-resources { margin-top: 14px; max-width: 680px; }
+.task-resources { margin-top: 14px; width: 100%; }
 .resource-list { list-style: none; padding: 0; display: grid; gap: 8px; }
 .resource-list li { display: flex; align-items: center; gap: 8px; }
 .resource-list button { padding: 7px 10px; font-size: 13px; }

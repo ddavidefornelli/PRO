@@ -4,8 +4,8 @@ const STEP = 5;
 const SWEEP = 300;
 
 /** Relative turning avoids jumping to a new estimate when the knob is grabbed. */
-export function estimateDial(): { element: HTMLElement; minutes: () => number } {
-  let minutes = 30;
+export function estimateDial(initialMinutes = 30, onCommit?: (minutes: number) => void): { element: HTMLElement; minutes: () => number } {
+  let minutes = initialMinutes;
   let position = minutes;
   let pointer: number | null = null;
   let previousAngle = 0;
@@ -40,8 +40,8 @@ export function estimateDial(): { element: HTMLElement; minutes: () => number } 
   const value = document.createElement("strong");
   readout.append(value);
   dial.append(ring, readout);
-  const update = () => {
-    minutes = Math.max(MIN, Math.min(MAX, Math.round(position / STEP) * STEP));
+  const update = (snap = true) => {
+    minutes = snap ? Math.max(MIN, Math.min(MAX, Math.round(position / STEP) * STEP)) : initialMinutes;
     value.textContent = String(minutes);
     progress.setAttribute("stroke-dasharray", `${minutes} 60`);
     dial.setAttribute("aria-valuenow", String(minutes));
@@ -69,10 +69,18 @@ export function estimateDial(): { element: HTMLElement; minutes: () => number } 
     position = Math.max(MIN, Math.min(MAX, position + delta * (MAX - MIN) / SWEEP));
     update();
   });
+  let committedMinutes = initialMinutes;
+  const commit = () => {
+    if (minutes === committedMinutes) return;
+    committedMinutes = minutes;
+    onCommit?.(minutes);
+  };
   const release = () => {
+    if (pointer === null) return;
     pointer = null;
     position = minutes;
     dial.classList.remove("is-turning");
+    commit();
   };
   dial.addEventListener("pointerup", release);
   dial.addEventListener("pointercancel", release);
@@ -87,8 +95,9 @@ export function estimateDial(): { element: HTMLElement; minutes: () => number } 
     event.preventDefault();
     position = Math.max(MIN, Math.min(MAX, minutes + adjustments[event.key]));
     update();
+    commit();
   });
-  update();
+  update(false);
   wrapper.append(dial);
   return { element: wrapper, minutes: () => minutes };
 }

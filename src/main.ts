@@ -187,29 +187,7 @@ class PlanningApplication {
       item.append(crown);
       const details = element("div", undefined, "task-details");
       details.append(this.renderTaskTitle(task, "h2"));
-      if (task.status === "planned") {
-        const estimate = element("form", undefined, "task-estimate");
-        const label = element("label", "Expected time (min)");
-        const minutes = element("input");
-        minutes.type = "number";
-        minutes.min = "1";
-        minutes.max = "60";
-        minutes.step = "1";
-        minutes.required = true;
-        minutes.value = String(task.estimatedMinutes);
-        minutes.disabled = this.busy;
-        label.append(minutes);
-        const save = element("button", "Save time");
-        save.type = "submit";
-        save.disabled = this.busy;
-        estimate.append(label, save);
-        estimate.addEventListener("submit", (event) => {
-          event.preventDefault();
-          if (!estimate.reportValidity()) return;
-          void this.mutate(() => this.client.changeEstimate(task.id, minutes.valueAsNumber), estimate);
-        });
-        details.append(estimate);
-      } else if (tomorrow) {
+      if (tomorrow && task.status !== "planned") {
         details.append(
           element(
             "p",
@@ -220,6 +198,15 @@ class PlanningApplication {
       }
       details.append(this.renderResources(task));
       item.append(details);
+      if (task.status === "planned") {
+        const estimate = estimateDial(task.estimatedMinutes, async (minutes) => {
+          while (this.refreshing) await new Promise((resolve) => window.setTimeout(resolve, 25));
+          await this.mutate(() => this.client.changeEstimate(task.id, minutes));
+        });
+        estimate.element.classList.add("task-estimate");
+        if (this.busy) estimate.element.querySelector('[role="slider"]')?.setAttribute("aria-disabled", "true");
+        item.append(estimate.element);
+      }
       if (!tomorrow && task.status === "planned") {
         const start = this.button("Start focus", () =>
           this.mutate(async () => {
@@ -242,15 +229,6 @@ class PlanningApplication {
     }
     this.content.append(list);
     if (tasks.length < 3) this.renderForm(day);
-    if (!tomorrow && data.canPlanTomorrow) {
-      this.content.append(
-        element(
-          "p",
-          "All tasks completed.",
-          "success",
-        ),
-      );
-    }
   }
 
   private renderTaskTitle(task: Task, tag: "h1" | "h2"): HTMLElement {

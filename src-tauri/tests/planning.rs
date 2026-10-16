@@ -37,6 +37,30 @@ fn service(clock: &TestClock) -> PlanningService {
 }
 
 #[test]
+fn priority_task_must_be_completed_before_other_tasks() {
+    let clock = TestClock::new();
+    let app = service(&clock);
+    let day = clock.now().day;
+    let first = app.create_task("First", day, 20).unwrap();
+    let second = app.create_task("Second", day, 20).unwrap();
+    let third = app.create_task("Third", day, 20).unwrap();
+    assert!(first.is_priority);
+    assert!(app.start_task(second.id()).is_err());
+    assert!(app.prioritize_task(second.id()).unwrap().is_priority);
+    assert!(app.start_task(first.id()).is_err());
+    app.start_task(second.id()).unwrap();
+    assert!(app.prioritize_task(first.id()).is_err());
+    app.pause_task(second.id(), "Break").unwrap();
+    assert!(app.start_task(first.id()).is_err());
+    app.resume_task(second.id()).unwrap();
+    app.complete_task(second.id()).unwrap();
+    assert!(app.prioritize_task(first.id()).is_err());
+    app.start_task(third.id()).unwrap();
+    app.complete_task(third.id()).unwrap();
+    app.start_task(first.id()).unwrap();
+}
+
+#[test]
 fn validates_outcomes_estimates_and_planning_dates() {
     let clock = TestClock::new();
     let app = service(&clock);
@@ -44,11 +68,13 @@ fn validates_outcomes_estimates_and_planning_dates() {
     assert!(app.create_task("  ", day, 30).is_err());
     assert!(app.create_task(&"x".repeat(501), day, 30).is_err());
     assert!(app.create_task("Outcome", day, 0).is_err());
+    assert!(app.create_task("Outcome", day, 61).is_err());
     assert!(app.create_task("Outcome", day, 1441).is_err());
     assert!(app.create_task("Outcome", day - Days::new(1), 30).is_err());
     assert!(app.create_task("Outcome", day + Days::new(2), 30).is_err());
     let task = app.create_task("  Ship proposal  ", day, 30).unwrap();
     assert_eq!(task.outcome(), "Ship proposal");
+    assert!(app.create_task("Full hour", day, 60).is_ok());
 }
 
 #[test]

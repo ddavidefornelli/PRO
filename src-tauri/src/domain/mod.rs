@@ -1,6 +1,6 @@
 mod task;
 
-pub use task::{Task, TaskStatus};
+pub use task::{Task, TaskResource, TaskStatus};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {

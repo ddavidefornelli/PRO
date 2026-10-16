@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{AppError, Result};
@@ -22,6 +22,15 @@ impl TaskStatus {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskResource {
+    pub id: String,
+    pub label: String,
+    pub target: String,
+    pub kind: String,
+}
+
 /// Encapsulates task state; mutations must go through validated transitions.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,6 +44,8 @@ pub struct Task {
     pub(crate) started_at: Option<i64>,
     pub(crate) completed_on: Option<NaiveDate>,
     pub(crate) created_at: i64,
+    pub resources: Vec<TaskResource>,
+    pub is_priority: bool,
 }
 
 impl Task {
@@ -45,9 +56,9 @@ impl Task {
                 "An outcome must contain 1–500 characters.".into(),
             ));
         }
-        if !(1..=1440).contains(&estimated_minutes) {
+        if !(1..=60).contains(&estimated_minutes) {
             return Err(AppError::Validation(
-                "Estimate must be between 1 and 1440 minutes.".into(),
+                "Estimate must be between 1 and 60 minutes.".into(),
             ));
         }
         Ok(Self {
@@ -60,6 +71,8 @@ impl Task {
             started_at: None,
             completed_on: None,
             created_at: now,
+            resources: Vec::new(),
+            is_priority: false,
         })
     }
 
@@ -69,6 +82,15 @@ impl Task {
     pub fn outcome(&self) -> &str {
         &self.outcome
     }
+    pub fn rename(&mut self, outcome: &str) -> Result<()> {
+        let outcome = outcome.trim();
+        if outcome.is_empty() || outcome.chars().count() > 500 {
+            return Err(AppError::Validation("An outcome must contain 1–500 characters.".into()));
+        }
+        self.outcome = outcome.to_owned();
+        Ok(())
+    }
+
     pub fn planned_for(&self) -> NaiveDate {
         self.planned_for
     }
@@ -90,20 +112,42 @@ impl Task {
         Ok(())
     }
 
+    pub fn pause(&mut self, now: i64) -> Result<()> {
+        if self.status != TaskStatus::Active || self.started_at.is_none() {
+            return Err(AppError::Conflict(
+                "Only a running timer can be paused.".into(),
+            ));
+        }
+        self.accumulate(now);
+        Ok(())
+    }
+
+    pub fn resume(&mut self, now: i64) -> Result<()> {
+        if self.status != TaskStatus::Active || self.started_at.is_some() {
+            return Err(AppError::Conflict(
+                "Only a paused timer can be resumed.".into(),
+            ));
+        }
+        self.started_at = Some(now);
+        Ok(())
+    }
+
+    fn accumulate(&mut self, now: i64) {
+        if let Some(started_at) = self.started_at.take() {
+            self.actual_seconds = self
+                .actual_seconds
+                .saturating_add(now.saturating_sub(started_at).max(0));
+        }
+    }
+
     pub fn complete(&mut self, now: i64, day: NaiveDate) -> Result<()> {
-        let started_at = self
-            .started_at
-            .ok_or_else(|| AppError::Conflict("Start the task before completing it.".into()))?;
         if self.status != TaskStatus::Active {
             return Err(AppError::Conflict(
                 "Only active tasks can be completed.".into(),
             ));
         }
         // Wall-clock timestamps include sleep and downtime. Clamp clock rollback to zero.
-        self.actual_seconds = self
-            .actual_seconds
-            .saturating_add(now.saturating_sub(started_at).max(0));
-        self.started_at = None;
+        self.accumulate(now);
         self.status = TaskStatus::Completed;
         self.completed_on = Some(day);
         Ok(())

@@ -14,6 +14,8 @@
       {
         "label": "main",
         "title": "PRO — Daily focus",
+        "theme": "Dark",
+        "backgroundColor": "#000000",
         "width": 1000,
         "height": 760,
         "minWidth": 640,

@@ -40,5 +40,9 @@ pub trait TaskRepository: Send {
     fn active(&self) -> Result<Option<Task>>;
     fn insert(&mut self, task: &Task) -> Result<()>;
     fn update(&mut self, task: &Task) -> Result<()>;
+    fn set_priority(&mut self, task: &Task) -> Result<()>;
+    /// Atomically persist the paused timer and its mandatory reason.
+    fn save_pause(&mut self, task: &Task, reason: &str, paused_at: i64) -> Result<()>;
+    fn update_pause_reason(&mut self, task_id: &str, reason: &str) -> Result<()>;
     fn completions(&self, since: NaiveDate, until: NaiveDate) -> Result<Vec<CompletionCount>>;
 }

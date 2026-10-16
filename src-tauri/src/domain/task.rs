@@ -91,6 +91,17 @@ impl Task {
         Ok(())
     }
 
+    pub fn change_estimate(&mut self, minutes: u32) -> Result<()> {
+        if self.status != TaskStatus::Planned {
+            return Err(AppError::Conflict("Only unstarted tasks can change their estimate.".into()));
+        }
+        if !(1..=60).contains(&minutes) {
+            return Err(AppError::Validation("Estimate must be between 1 and 60 minutes.".into()));
+        }
+        self.estimated_minutes = minutes;
+        Ok(())
+    }
+
     pub fn planned_for(&self) -> NaiveDate {
         self.planned_for
     }

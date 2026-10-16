@@ -77,6 +77,58 @@ fn pause_reasons_and_timer_survive_restart_and_exclude_paused_time() {
 }
 
 #[test]
+fn estimates_are_editable_only_before_start_and_persist() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("pro.sqlite3");
+    let app = PlanningService::new(
+        Box::new(SqliteTaskRepository::open(&path).unwrap()),
+        Box::new(TestClock(Arc::new(AtomicI64::new(1000)))),
+    );
+    let task = app.create_task("Work", NaiveDate::from_ymd_opt(2026, 10, 16).unwrap(), 30).unwrap();
+    assert!(app.change_estimate(task.id(), 0).is_err());
+    assert!(app.change_estimate(task.id(), 61).is_err());
+    app.change_estimate(task.id(), 45).unwrap();
+    let db = rusqlite::Connection::open(&path).unwrap();
+    let minutes: u32 = db.query_row("SELECT estimated_minutes FROM tasks WHERE id = ?1", [task.id()], |row| row.get(0)).unwrap();
+    assert_eq!(minutes, 45);
+    app.start_task(task.id()).unwrap();
+    assert!(app.change_estimate(task.id(), 20).is_err());
+    app.stop_timer(task.id()).unwrap();
+    assert!(app.change_estimate(task.id(), 20).is_err());
+    app.complete_task(task.id()).unwrap();
+    assert!(app.change_estimate(task.id(), 20).is_err());
+}
+
+#[test]
+fn stopping_before_writing_reason_excludes_time_spent_writing() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("pro.sqlite3");
+    let now = Arc::new(AtomicI64::new(1000));
+    let app = PlanningService::new(
+        Box::new(SqliteTaskRepository::open(&path).unwrap()),
+        Box::new(TestClock(now.clone())),
+    );
+    let task = app.create_task("Work", TestClock(now.clone()).now().day, 30).unwrap();
+    app.start_task(task.id()).unwrap();
+    assert!(app.save_pause_reason(task.id(), "Break").is_err());
+    now.store(1060, Ordering::SeqCst);
+    assert_eq!(app.stop_timer(task.id()).unwrap().actual_seconds(), 60);
+    now.store(1360, Ordering::SeqCst);
+    assert!(app.save_pause_reason(task.id(), "  ").is_err());
+    app.save_pause_reason(task.id(), "  Phone call  ").unwrap();
+    let db = rusqlite::Connection::open(&path).unwrap();
+    let pause: (String, i64) = db.query_row(
+        "SELECT reason, paused_at FROM timer_pauses WHERE task_id = ?1",
+        [task.id()],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).unwrap();
+    assert_eq!(pause, ("Phone call".into(), 1060));
+    app.resume_task(task.id()).unwrap();
+    now.store(1390, Ordering::SeqCst);
+    assert_eq!(app.complete_task(task.id()).unwrap().actual_seconds(), 90);
+}
+
+#[test]
 fn migrates_existing_running_tasks_without_data_loss() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("pro.sqlite3");

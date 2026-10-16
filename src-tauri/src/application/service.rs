@@ -93,6 +93,14 @@ impl PlanningService {
         Ok(task)
     }
 
+    pub fn change_estimate(&self, id: &str, minutes: u32) -> Result<Task> {
+        let mut repo = self.repository()?;
+        let mut task = repo.find(id)?;
+        task.change_estimate(minutes)?;
+        repo.update(&task)?;
+        Ok(task)
+    }
+
     pub fn prioritize_task(&self, id: &str) -> Result<Task> {
         let mut repo = self.repository()?;
         let task = repo.find(id)?;

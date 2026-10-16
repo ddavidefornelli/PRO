@@ -154,10 +154,10 @@ impl TaskRepository for SqliteTaskRepository {
     fn update(&mut self, task: &Task) -> Result<()> {
         // Status, timer and completion date are committed as one atomic statement.
         let changed = self.connection.execute(
-            "UPDATE tasks SET status = ?1, started_at = ?2, actual_seconds = ?3, completed_on = ?4, resources = ?6, outcome = ?7 WHERE id = ?5",
+            "UPDATE tasks SET status = ?1, started_at = ?2, actual_seconds = ?3, completed_on = ?4, resources = ?6, outcome = ?7, estimated_minutes = ?8 WHERE id = ?5",
             params![task.status.as_str(), task.started_at, task.actual_seconds,
                 task.completed_on.map(|day| day.to_string()), task.id,
-                serde_json::to_string(&task.resources).map_err(|error| AppError::Storage(Box::new(error)))?, task.outcome],
+                serde_json::to_string(&task.resources).map_err(|error| AppError::Storage(Box::new(error)))?, task.outcome, task.estimated_minutes],
         )?;
         if changed == 0 {
             return Err(AppError::NotFound);

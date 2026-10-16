@@ -24,6 +24,12 @@ class PlanningApplication {
   private error = "";
   private clockOffset = 0;
   private pauseReasonOpen = false;
+  private completionState: { day: string; complete: boolean } | null = null;
+
+  private get todayComplete(): boolean {
+    const tasks = this.data?.todayTasks ?? [];
+    return tasks.length > 0 && tasks.every((task) => task.status === "completed");
+  }
   private readonly navigation = element("nav");
   private readonly content = element("main");
   private readonly alert = element("p", "", "error");
@@ -84,11 +90,12 @@ class PlanningApplication {
     this.navigation.replaceChildren();
     const views: [View, string][] = [
       ["today", "Today"],
-      ["focus", "Focus"],
-      ["habits", "Habit tracker"],
+      ...(!this.todayComplete ? [["focus", "Focus"] as [View, string]] : []),
+      ["habits", "Overview"],
     ];
+    if (this.todayComplete && this.view === "focus") this.view = "today";
     if (this.data?.canPlanTomorrow)
-      views.splice(2, 0, ["tomorrow", "Tomorrow"]);
+      views.splice(views.findIndex(([view]) => view === "habits"), 0, ["tomorrow", "Tomorrow"]);
     if (this.view === "tomorrow" && !this.data?.canPlanTomorrow)
       this.view = "today";
     const focusLocked = this.data?.activeTask != null && this.data.activeTask.startedAt !== null;
@@ -103,9 +110,11 @@ class PlanningApplication {
         button.disabled = true;
         button.title = "Pause the focus timer to access other pages";
       }
+      if (view === "today" && this.todayComplete) button.classList.add("day-complete");
       if (view === this.view) button.setAttribute("aria-current", "page");
       this.navigation.append(button);
     }
+    this.navigation.classList.toggle("today-complete-selected", this.todayComplete && this.view === "today");
     this.updateNavigationIndicator();
     this.content.replaceChildren();
     if (!this.data) {
@@ -117,6 +126,29 @@ class PlanningApplication {
     else if (this.view === "habits") this.renderHabits();
     else this.renderPlan();
     this.tick();
+    const complete = this.todayComplete;
+    if (complete && this.completionState?.day === this.data.today && !this.completionState.complete) {
+      this.celebrate();
+    }
+    this.completionState = { day: this.data.today, complete };
+  }
+
+  private celebrate(): void {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const confetti = element("div", undefined, "confetti");
+    confetti.setAttribute("aria-hidden", "true");
+    const colors = ["#30d158", "#0a84ff", "#ffd60a", "#ff375f", "#bf5af2"];
+    for (let i = 0; i < 100; i++) {
+      const piece = element("span");
+      piece.style.left = `${Math.random() * 100}%`;
+      piece.style.backgroundColor = colors[i % colors.length];
+      piece.style.setProperty("--drift", `${(Math.random() - 0.5) * 300}px`);
+      piece.style.animationDelay = `${Math.random() * 0.7}s`;
+      piece.style.animationDuration = `${2.2 + Math.random() * 1.3}s`;
+      confetti.append(piece);
+    }
+    document.body.append(confetti);
+    window.setTimeout(() => confetti.remove(), 4500);
   }
 
   private updateNavigationIndicator(): void {
@@ -155,7 +187,29 @@ class PlanningApplication {
       item.append(crown);
       const details = element("div", undefined, "task-details");
       details.append(this.renderTaskTitle(task, "h2"));
-      if (tomorrow) {
+      if (task.status === "planned") {
+        const estimate = element("form", undefined, "task-estimate");
+        const label = element("label", "Expected time (min)");
+        const minutes = element("input");
+        minutes.type = "number";
+        minutes.min = "1";
+        minutes.max = "60";
+        minutes.step = "1";
+        minutes.required = true;
+        minutes.value = String(task.estimatedMinutes);
+        minutes.disabled = this.busy;
+        label.append(minutes);
+        const save = element("button", "Save time");
+        save.type = "submit";
+        save.disabled = this.busy;
+        estimate.append(label, save);
+        estimate.addEventListener("submit", (event) => {
+          event.preventDefault();
+          if (!estimate.reportValidity()) return;
+          void this.mutate(() => this.client.changeEstimate(task.id, minutes.valueAsNumber), estimate);
+        });
+        details.append(estimate);
+      } else if (tomorrow) {
         details.append(
           element(
             "p",
@@ -374,8 +428,16 @@ class PlanningApplication {
     timer.append(svg, face);
     layout.append(timer);
     if (this.pauseReasonOpen && paused) {
+      const dialog = element("dialog", undefined, "pause-dialog");
+      dialog.setAttribute("aria-labelledby", "pause-reason-label");
+      dialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        this.pauseReasonOpen = false;
+        this.render();
+      });
       const form = element("form", undefined, "pause-form");
       const label = element("label", "Why are you stopping?");
+      label.id = "pause-reason-label";
       const reason = element("textarea");
       reason.required = true;
       reason.maxLength = 1000;
@@ -399,7 +461,10 @@ class PlanningApplication {
         }, form);
       });
       reason.addEventListener("input", () => reason.setCustomValidity(""));
-      details.append(form);
+      dialog.append(form);
+      details.append(dialog);
+      dialog.showModal();
+      reason.focus();
     }
     const actions = element("div", undefined, "focus-actions");
     details.append(actions);
@@ -416,7 +481,7 @@ class PlanningApplication {
 
   private renderHabits(): void {
     this.content.append(
-      element("h1", "Habit tracker"),
+      element("h1", "Overview"),
       element(
         "p",
         "Last 52 weeks · One square per day",

@@ -58,6 +58,11 @@ fn rename_task(service: State<'_, PlanningService>, id: String, outcome: String)
 }
 
 #[tauri::command]
+fn change_estimate(service: State<'_, PlanningService>, id: String, minutes: u32) -> Result<Task, CommandError> {
+    service.change_estimate(&id, minutes).map_err(Into::into)
+}
+
+#[tauri::command]
 fn prioritize_task(service: State<'_, PlanningService>, id: String) -> Result<Task, CommandError> {
     service.prioritize_task(&id).map_err(Into::into)
 }
@@ -171,6 +176,7 @@ pub fn run() {
             create_task,
             prioritize_task,
             rename_task,
+            change_estimate,
             start_task,
             pause_task,
             stop_timer,

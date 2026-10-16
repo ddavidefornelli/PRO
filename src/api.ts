@@ -46,6 +46,10 @@ export class PlanningClient {
     return invoke("rename_task", { id, outcome });
   }
 
+  changeEstimate(id: string, minutes: number): Promise<Task> {
+    return invoke("change_estimate", { id, minutes });
+  }
+
   addLink(id: string, label: string, url: string): Promise<Task> {
     return invoke("add_task_link", { id, label, url });
   }

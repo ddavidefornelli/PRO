@@ -64,7 +64,7 @@ function previousMonday(day: Date): string {
 }
 
 /** Strict allowlist: resource paths/URLs, model choices and prompts are never accepted. */
-export function validateInput(value: unknown, now: Date): ReviewInput {
+export function validateInput(value: unknown, now: Date, preview = false): ReviewInput {
   const input = record(value, ["consentVersion", "weekStart", "weekEnd", "activity"]);
   if (input.consentVersion !== CONSENT_VERSION) {
     throw new ApiError(400, "consent_required", "Enable weekly AI using the current privacy notice before requesting a review.");
@@ -73,7 +73,12 @@ export function validateInput(value: unknown, now: Date): ReviewInput {
   const weekEnd = date(input.weekEnd);
   // Accept the latest closed week in any real device timezone at UTC boundaries.
   const validWeeks = [-1, 0, 1].map((offset) => previousMonday(new Date(now.getTime() + offset * DAY_MS)));
-  if (!validWeeks.includes(weekStart) || Date.parse(weekEnd) - Date.parse(weekStart) !== 6 * DAY_MS) invalid();
+  if (preview) {
+    const localDays = [-1, 0, 1].map((offset) => new Date(now.getTime() + offset * DAY_MS).toISOString().slice(0, 10));
+    const end = new Date(`${weekEnd}T00:00:00Z`);
+    const monday = new Date(end.getTime() - ((end.getUTCDay() + 6) % 7) * DAY_MS).toISOString().slice(0, 10);
+    if (!localDays.includes(weekEnd) || weekStart !== monday) invalid();
+  } else if (!validWeeks.includes(weekStart) || Date.parse(weekEnd) - Date.parse(weekStart) !== 6 * DAY_MS) invalid();
   const activity = record(input.activity, ["tasks", "stops", "totalStops", "omittedStops"]);
   if (!Array.isArray(activity.tasks) || activity.tasks.length > 256 || !Array.isArray(activity.stops) || activity.stops.length > 200) invalid();
   const tasks: Task[] = activity.tasks.map((value) => {

@@ -14,6 +14,10 @@ async function fixture(provider) {
   await f.db.query("insert into public.planner_tasks(user_id, outcome, planned_for, slot, estimated_minutes) values ($1, 'Weekly context', $2, 1, 30)", [ALICE, f.dates.week]);
   const calls = [];
   const rpc = {
+    planner_preview_input: (a) => ["select public.planner_preview_input($1, $2) result", [a.p_user_id, a.p_timezone]],
+    reserve_review_preview: (a) => ["select public.reserve_review_preview($1) result", [a.p_user_id]],
+    finish_review_preview: (a) => ["select public.finish_review_preview($1, $2) result", [a.p_id, a.p_lease_token]],
+    fail_review_preview: (a) => ["select public.fail_review_preview($1, $2) result", [a.p_id, a.p_lease_token]],
     planner_review_input: (a) => ["select public.planner_review_input($1, $2) result", [a.p_user_id, a.p_timezone]],
     reserve_planner_review: (a) => ["select public.reserve_planner_review($1, $2, $3, $4, $5::jsonb) result", [a.p_user_id, a.p_week_start, a.p_request_hash, a.p_consent_version, JSON.stringify(a.p_activity)]],
     finish_weekly_review: (a) => ["select public.finish_weekly_review($1, $2, $3::jsonb, $4) result", [a.p_id, a.p_lease_token, JSON.stringify(a.p_analysis), a.p_model]],
@@ -39,8 +43,8 @@ async function fixture(provider) {
     return Response.json(result);
   };
   const handler = createHandler(platformDependencies({ url: "https://fixture.invalid", publicKey: "public-fixture", serviceKey: "service-fixture-secret", openAiKey: "provider-fixture-secret" }, fetcher));
-  const request = () => new Request("https://fixture.invalid/functions/v1/weekly-review", { method: "POST", headers: { Authorization: "Bearer signed-in-fixture", "Content-Type": "application/json" }, body: JSON.stringify({ timezone: "UTC" }) });
-  return { run: () => handler(request()), calls };
+  const request = (preview = false) => new Request("https://fixture.invalid/functions/v1/weekly-review", { method: "POST", headers: { Authorization: "Bearer signed-in-fixture", "Content-Type": "application/json" }, body: JSON.stringify({ timezone: "UTC", preview }) });
+  return { run: (preview = false) => handler(request(preview)), calls };
 }
 const output = { summary: "One planned outcome. No stops were recorded.", mainReasons: [], improvements: ["Record necessary breaks when they happen."] };
 const providerSuccess = () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(output) } }] });
@@ -59,6 +63,21 @@ test("full Edge pipeline: authenticated input → actual SQL reservation → pro
   assert.deepEqual((await f.call("weekly_overview", {}, BOB)).reviews, []);
   assert.equal((await f.db.query("select activity from public.ai_review_requests")).rows[0].activity, null);
   assert.deepEqual((await f.db.query("select attempts from public.ai_usage order by period")).rows.map((r) => r.attempts), [1, 1]);
+});
+
+test("full Edge preview pipeline uses separate leases, returns a transient report, and preserves weekly allowance", async () => {
+  const h = await fixture(providerSuccess);
+  await f.create("Current task");
+  const response = await h.run(true);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.review.weekEnd, f.dates.today);
+  assert.equal(body.review.activity.tasks[0].outcome, "Current task");
+  assert.deepEqual(body.review.analysis, output);
+  assert.deepEqual((await f.call("weekly_overview")).reviews, []);
+  assert.equal((await f.db.query("select count(*)::int n from public.ai_review_requests")).rows[0].n, 0);
+  assert.equal((await h.run(true)).status, 429);
+  assert.equal((await h.run()).status, 200);
 });
 
 test("full Edge pipeline: malformed provider result invokes service-only failure cleanup without a durable review", async () => {

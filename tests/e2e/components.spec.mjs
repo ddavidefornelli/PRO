@@ -80,6 +80,7 @@ test("durable AI report renders source evidence and hostile text literally, not 
   await backend.db.query("insert into public.planner_reviews(user_id, week_start, report) values ('00000000-0000-4000-8000-000000000001', $1, $2::jsonb)", [report.weekStart, JSON.stringify(report)]);
   await open(page); await page.getByRole("navigation").getByRole("button", { name: "Overview", exact: true }).click();
   await expect(page.locator(".weekly-summary")).toHaveText(report.analysis.summary);
+  await expect(page.locator(".weekly-task-timing")).toContainText("30m estimated · 1m 30s actual focus time · 28m 30s under estimate");
   await expect(page.locator(".weekly-report")).toContainText("4 earlier stops were omitted");
   await page.getByText("View 1 supporting stop entry", { exact: true }).click();
   await expect(page.getByText(report.activity.stops[0].reason, { exact: true }).first()).toBeVisible();

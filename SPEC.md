@@ -13,18 +13,20 @@ A fast, reliable desktop app that removes daily planning friction and helps you 
 ## Tasks
 Each task contains:
 - A clear outcome.
-- Estimated duration and actual time spent.
+- Estimated duration and accumulated recorded focus time (timer-running seconds, excluding paused breaks). Completed tasks display both; zero recorded time is treated as missing timing evidence.
 - Status: planned, active, or completed.
 
 Unfinished tasks can be carried forward, rewritten, or dropped.
 
 ## AI
 - Optional, consent-based weekly reflection, posted in Overview once per week.
-- Summarizes the previous complete Monday–Sunday, identifies the main reported reasons for stopping work, and suggests a few practical improvements for next week.
+- Summarizes the previous complete Monday–Sunday, identifies the main reported reasons for stopping work, compares estimates with whole-task recorded focus time for tasks completed that week, and suggests a few practical improvements for next week.
+- Timing differences are calculated in code. Whole-task time may span weeks and is not a weekly work-time total. Unfinished tasks have no final duration; duration alone does not establish efficiency or causes.
 - Tasks provide context only: no task-value scoring, coping labels, or “moving the boat” suggestions.
 - Grounds interpretations in the recorded reasons, acknowledges missing information, and respects legitimate rest and interruptions.
 - Never changes tasks or timers. Failures leave core features and past reviews available.
 - Runs on Monday while the app is open, or catches up with the latest complete week on the next launch.
+- Overview also offers “Review this week so far”: an on-demand Monday-through-today preview, separate from scheduled reports, shown for the current app session only. Requires consent and shared budget availability; limited to three attempts per UTC day, at least ten minutes apart. Failures count.
 
 ## Interface
 Four planner views: **Today, Focus, Tomorrow (only if today's tasks are finished), Overview (daily completion grid and saved weekly AI reflections)**.

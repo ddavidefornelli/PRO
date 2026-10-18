@@ -43,7 +43,7 @@ export async function database() {
   async function reset() {
     await db.exec(`truncate public.planner_accounts, public.planner_tasks, public.planner_resources,
       public.planner_stops, public.planner_reviews, public.planner_receipts, public.ai_review_requests,
-      public.ai_usage restart identity cascade;
+      public.ai_usage, public.ai_review_previews restart identity cascade;
       update public.ai_controls set enabled = true, daily_attempt_limit = 150, monthly_attempt_limit = 600;`);
   }
   const create = (outcome = "Ship a useful outcome", user = ALICE) => call("create_task", { outcome, day: dates.today, estimatedMinutes: 30 }, user);

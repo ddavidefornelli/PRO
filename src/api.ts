@@ -183,6 +183,12 @@ export class PlanningClient {
     return this.native("generate_weekly_review", { timezone: this.timezone });
   }
 
+  async previewReview(): Promise<{ review?: WeeklyReview; noData?: boolean }> {
+    await this.sync();
+    if (this.pendingCount) throw new Error("Sync pending planner changes before creating an AI review.");
+    return this.native("generate_weekly_review", { timezone: this.timezone, preview: true });
+  }
+
   create(outcome: string, day: string, estimatedMinutes: number): Promise<Task> {
     return this.call("create_task", { outcome, day, estimatedMinutes });
   }

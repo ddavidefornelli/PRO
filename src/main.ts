@@ -8,6 +8,7 @@ import { actionButton, decorativeSvg, element, svgElement } from "./dom";
 import { errorMessage } from "./errors";
 import { isDayComplete, PLANNER_LIMITS, trackedSeconds } from "./planner";
 import { formatDuration } from "./time";
+import { focusDuration } from "../shared/task-timing";
 import "./styles.css";
 
 type View = "today" | "focus" | "tomorrow" | "habits" | "profile";
@@ -268,11 +269,11 @@ class PlanningApplication {
       item.append(crown);
       const details = element("div", undefined, "task-details");
       details.append(this.renderTaskTitle(task, "h2"));
-      if (tomorrow && task.status !== "planned") {
+      if (task.status === "completed" || (tomorrow && task.status !== "planned")) {
         details.append(
           element(
             "p",
-            `${task.estimatedMinutes} min estimated · ${task.status}${task.status === "completed" ? ` · ${formatDuration(task.actualSeconds)} spent` : ""}`,
+            `${task.estimatedMinutes} min estimated · ${task.status}${task.status === "completed" ? ` · ${task.actualSeconds > 0 ? `${focusDuration(task.actualSeconds)} actual focus time` : "No focus time recorded"}` : ""}`,
             "muted",
           ),
         );

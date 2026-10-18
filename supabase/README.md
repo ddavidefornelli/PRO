@@ -135,13 +135,23 @@ Content-Type: application/json
 The function:
 
 1. Authenticates the verified user.
-2. Accepts only the timezone; rejects client-supplied activity, prompts, models and user IDs.
+2. Accepts only the timezone and optional boolean `preview` flag; rejects client-supplied activity, prompts, models and user IDs.
 3. Loads consent and previous closed local-week activity using the service-only `planner_review_input` RPC.
 4. Validates/bounds that activity and atomically reserves a paid attempt with `reserve_planner_review`.
 5. Calls fixed `gpt-4.1-mini` with a server-owned prompt, `store: false`, 6,000 output tokens, 90-second timeout and no redirects.
 6. Validates response sizes/schema/evidence and saves the report plus source activity in `planner_reviews` before returning. Completion requires an unexpired matching lease and unchanged AI consent revision.
 
 An empty week returns `{ "noData": true }` without reservation/provider usage. Otherwise success is `{ "analysis": ..., "model": ..., "generatedAt": ..., "cached": false }`. Retry cache hits return `cached: true`. The desktop reloads the durable review from Postgres; it does not persist a second copy locally.
+
+### On-demand current-week previews
+
+Overview includes **Review this week so far**. It posts `{"timezone":"Europe/Rome","preview":true}` to the same authenticated function. The server loads Monday-through-today activity, excluding tomorrow's plan. Consent, bounded inputs, output/evidence validation and global limits still apply.
+
+Previews use a separate service-only reservation with a three-minute lease, at least ten minutes between attempts and at most three attempts per account per UTC day. Failures count. Timezone changes do not reset these limits. They share the global daily/monthly budget but do not consume or replace the scheduled weekly slot. A consent revision change prevents an in-flight preview from completing.
+
+The response is `{ "review": ... }` with the source snapshot and report, or `{ "noData": true }`. Previews remain visible in the current app session only, not saved review history. The database retains only one quota/lease metadata row per account; preview inputs and output are not stored there. Provider retention still applies.
+
+Deploy migration `20261018000100_review_previews.sql`, redeploy the function and rebuild the desktop app to enable this path.
 
 ### Quotas and disable controls
 

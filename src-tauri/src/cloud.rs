@@ -500,8 +500,11 @@ impl Cloud {
             json!({"p_action": action, "p_args": args, "p_timezone": timezone}),
         )
     }
-    pub fn generate_review(&self, timezone: &str) -> Result<Value> {
-        self.authenticated_post("/functions/v1/weekly-review", json!({"timezone": timezone}))
+    pub fn generate_review(&self, timezone: &str, preview: bool) -> Result<Value> {
+        self.authenticated_post(
+            "/functions/v1/weekly-review",
+            json!({"timezone": timezone, "preview": preview}),
+        )
     }
 }
 

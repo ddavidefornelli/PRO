@@ -52,19 +52,22 @@ export function platformDependencies(config: Config, fetcher: typeof fetch = fet
       }
       return user.id;
     },
-    loadInput: (userId: string, timezone: string) => rpc<unknown>("planner_review_input", { p_user_id: userId, p_timezone: timezone }),
-    reserve(userId: string, input: ReviewInput, hash: string) {
+    loadInput: (userId: string, timezone: string, preview = false) => rpc<unknown>(preview ? "planner_preview_input" : "planner_review_input", { p_user_id: userId, p_timezone: timezone }),
+    reserve(userId: string, input: ReviewInput, hash: string, preview = false) {
+      if (preview) return rpc<Reservation>("reserve_review_preview", { p_user_id: userId });
       return rpc<Reservation>("reserve_planner_review", {
         p_user_id: userId, p_week_start: input.weekStart, p_request_hash: hash, p_consent_version: input.consentVersion,
         p_activity: input.activity,
       });
     },
     generate: (input: ReviewInput) => generateReview(input, config.openAiKey!, fetcher),
-    finish: (id: string, token: string, analysis: Analysis) => rpc<boolean>("finish_weekly_review", {
-      p_id: id, p_lease_token: token, p_analysis: analysis, p_model: MODEL,
-    }),
-    async fail(id: string, token: string) {
-      await rpc<boolean>("fail_weekly_review", { p_id: id, p_lease_token: token });
+    finish: (id: string, token: string, analysis: Analysis, preview = false) => preview
+      ? rpc<boolean>("finish_review_preview", { p_id: id, p_lease_token: token })
+      : rpc<boolean>("finish_weekly_review", {
+        p_id: id, p_lease_token: token, p_analysis: analysis, p_model: MODEL,
+      }),
+    async fail(id: string, token: string, preview = false) {
+      await rpc<boolean>(preview ? "fail_review_preview" : "fail_weekly_review", { p_id: id, p_lease_token: token });
     },
     now: () => new Date(),
     allowedOrigins: new Set((config.allowedOrigins ?? "tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:1420,http://127.0.0.1:1420")

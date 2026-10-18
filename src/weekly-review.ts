@@ -2,6 +2,7 @@ import { PlanningClient, type ReviewStop, type WeeklyOverview, type WeeklyReview
 
 import { actionButton, element as node } from "./dom";
 import { errorMessage } from "./errors";
+import { completedTaskTimings, focusDuration } from "../shared/task-timing";
 
 const reviewDate = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
@@ -13,6 +14,8 @@ export class WeeklyReviewPanel {
   private saving = false;
   private changeVersion = 0;
   private error = "";
+  private preview: WeeklyReview | null = null;
+  private previewMessage = "";
   private pollTimer: number | undefined;
 
   constructor(private readonly client: PlanningClient) {
@@ -60,7 +63,7 @@ export class WeeklyReviewPanel {
     this.element.setAttribute("aria-busy", String(this.saving));
     const heading = node("h2", "Weekly review");
     heading.id = "weekly-review-title";
-    this.element.append(heading, node("p", "Your week, why you stopped, and what you could improve. Updated once a week.", "muted"));
+    this.element.append(heading, node("p", "Your week, task timing, why you stopped, and what you could improve. Updated once a week.", "muted"));
     if (this.error) {
       const error = node("p", this.error, "error");
       error.setAttribute("role", "alert");
@@ -101,6 +104,19 @@ export class WeeklyReviewPanel {
     if (data.status === "failed") {
       this.element.append(this.button("Retry weekly review", () => this.retry()));
     }
+    const previewButton = this.button(this.saving ? "Creating review…" : "Review this week so far", () => this.createPreview());
+    previewButton.disabled = this.saving || !data.settings.enabled || !data.available || data.status === "running";
+    this.element.append(previewButton, node("p", "Create an on-demand review from Monday through today. Up to 3 attempts per UTC day, at least 10 minutes apart. It does not replace your scheduled weekly report. Previews are shown here until you reload or sign out; they are not saved in review history.", "muted"));
+    if (this.previewMessage) {
+      const message = node("p", this.previewMessage, "muted");
+      message.setAttribute("role", "status");
+      this.element.append(message);
+    }
+    if (this.preview) {
+      const preview = node("section", undefined, "weekly-preview");
+      preview.append(node("h3", "This week so far · On-demand preview"), this.report(this.preview));
+      this.element.append(preview);
+    }
     data.reviews.forEach((review, index) => {
       if (index === 0) this.element.append(this.report(review));
       else {
@@ -119,7 +135,20 @@ export class WeeklyReviewPanel {
     if (review.activity.omittedStops > 0) {
       article.append(node("p", `This review uses the most recent ${review.activity.stops.length} stop reasons; ${review.activity.omittedStops} earlier stops were omitted to limit the AI payload.`, "muted"));
     }
-    article.append(node("p", review.analysis.summary, "weekly-summary"), node("h4", "Main reasons you stopped"));
+    article.append(node("p", review.analysis.summary, "weekly-summary"));
+    article.append(node("h4", "Estimated vs actual task time"));
+    article.append(node("p", "Whole-task recorded focus time for tasks completed this week, excluding paused breaks. Tasks may span weeks; these are not weekly work-time totals.", "muted"));
+    const timings = completedTaskTimings(review.activity.tasks, review.weekStart, review.weekEnd);
+    const names = new Map(review.activity.tasks.map((task) => [task.id, task.outcome]));
+    const timingList = node("ul", undefined, "weekly-task-timing");
+    for (const timing of timings) {
+      const difference = timing.differenceSeconds === 0 ? "on estimate"
+        : `${focusDuration(Math.abs(timing.differenceSeconds))} ${timing.differenceSeconds > 0 ? "over" : "under"} estimate`;
+      timingList.append(node("li", `${names.get(timing.taskId)} · ${focusDuration(timing.estimatedSeconds)} estimated · ${timing.hasRecordedTime ? `${focusDuration(timing.actualSeconds)} actual focus time · ${difference}` : "No focus time recorded; comparison unavailable"}`));
+    }
+    if (timings.length) article.append(timingList);
+    else article.append(node("p", "No completed tasks in this review week to compare.", "muted"));
+    article.append(node("h4", "Main reasons you stopped"));
     const taskNames = new Map(review.activity.tasks.map((task) => [task.id, task.outcome]));
     const stops = new Map(review.activity.stops.map((stop) => [stop.id, stop]));
     if (!review.analysis.mainReasons.length) {
@@ -149,7 +178,7 @@ export class WeeklyReviewPanel {
     sources.append(node("p", "Tasks are context only. Status and recorded time are snapshots at review time, not a historical reconstruction or a weekly time total.", "muted"));
     const taskList = node("ul");
     for (const task of review.activity.tasks) {
-      taskList.append(node("li", `${task.outcome} · planned ${this.date(task.plannedFor)} · ${task.status}${task.completedOn ? ` on ${this.date(task.completedOn)}` : ""} · ${task.estimatedMinutes} min estimated · ${Math.round(task.actualSeconds / 60)} min total recorded`));
+      taskList.append(node("li", `${task.outcome} · planned ${this.date(task.plannedFor)} · ${task.status}${task.completedOn ? ` on ${this.date(task.completedOn)}` : ""} · ${task.estimatedMinutes} min estimated · ${focusDuration(task.actualSeconds)} total recorded focus time`));
     }
     sources.append(taskList);
     if (review.activity.stops.length) {
@@ -184,6 +213,29 @@ export class WeeklyReviewPanel {
       this.schedulePoll();
     }
     if (enabled && !this.error && this.data?.settings.enabled) void this.retry();
+  }
+
+  private async createPreview(): Promise<void> {
+    if (this.saving || !this.data?.settings.enabled || !this.data.available) return;
+    this.changeVersion++;
+    this.saving = true;
+    this.error = "";
+    this.previewMessage = "";
+    this.render();
+    try {
+      const result = await this.client.previewReview();
+      if (result.noData) this.previewMessage = "No activity recorded this week yet. No AI request was made.";
+      else if (result.review) {
+        this.preview = result.review;
+        this.previewMessage = "Your on-demand review is ready.";
+      } else throw new Error("The AI review could not be loaded. Please try later.");
+    } catch (error) {
+      this.error = errorMessage(error, "Could not create a review. Your planner and saved reviews are unchanged.");
+    } finally {
+      this.saving = false;
+      this.render();
+      this.schedulePoll();
+    }
   }
 
   private async retry(): Promise<void> {

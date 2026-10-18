@@ -187,11 +187,18 @@ async fn open_task_resource(
     .await
 }
 #[tauri::command]
-async fn generate_weekly_review(state: State<'_, DesktopState>, timezone: String) -> Result<()> {
+async fn generate_weekly_review(
+    state: State<'_, DesktopState>,
+    timezone: String,
+    preview: Option<bool>,
+) -> Result<serde_json::Value> {
     let cloud = state.cloud().await?;
     let flag = Arc::clone(&state.generating);
     if flag.swap(true, Ordering::AcqRel) {
-        return Ok(());
+        return Err(CommandError::new(
+            "running",
+            "An AI review is already being generated. Please try again shortly.",
+        ));
     }
     // Reset on errors and panics as well; only one AI request per process can be in flight.
     struct Reset(Arc<AtomicBool>);
@@ -202,8 +209,7 @@ async fn generate_weekly_review(state: State<'_, DesktopState>, timezone: String
     }
     blocking(move || {
         let _reset = Reset(flag);
-        cloud.generate_review(&timezone)?;
-        Ok(())
+        cloud.generate_review(&timezone, preview.unwrap_or(false))
     })
     .await
 }

@@ -1,0 +1,56 @@
+name: pro
+
+services:
+  dev:
+    image: pro-dev:local
+    build:
+      context: .
+      target: development
+    init: true
+    ports:
+      - "127.0.0.1:${PRO_DEV_PORT:-1420}:1420"
+    environment:
+      PRO_DEV_POLLING: "${PRO_DEV_POLLING:-false}"
+    # Mount source only. Host node_modules, credentials and .env files stay outside.
+    volumes:
+      - ./src:/app/src:ro
+      - ./shared:/app/shared:ro
+      - ./index.html:/app/index.html:ro
+      - ./vite.config.ts:/app/vite.config.ts:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  preview:
+    profiles: [preview]
+    image: pro-preview:local
+    build:
+      context: .
+      target: preview
+    init: true
+    ports:
+      - "127.0.0.1:${PRO_PREVIEW_PORT:-8080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  tests:
+    profiles: [test]
+    image: pro-tests:local
+    build:
+      context: .
+      target: tests
+    init: true
+    # Chromium and WebKit need more than Docker's default 64 MiB /dev/shm.
+    shm_size: 1gb
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

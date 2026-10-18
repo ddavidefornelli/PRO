@@ -194,15 +194,32 @@ textarea { resize: vertical; }
 .weekly-overview button:focus-visible, .weekly-overview summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .weekly-report { padding: 24px; margin-top: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
 .weekly-summary { white-space: pre-line; }
-.weekly-reason { margin-block: 18px; }
-.weekly-reason > p { margin-bottom: 8px; }
+.review-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 24px 0; }
+.review-stats > div { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+.review-stats dt { color: var(--muted); font-size: 13px; }
+.review-stats dd { margin: 10px 0 0; font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.weekly-task-timing { display: grid; gap: 20px; list-style: none; padding: 0; }
+.weekly-task-timing li { min-width: 0; }
+.weekly-task-timing p { margin: 6px 0 10px; }
+.review-bar-track { height: 8px; margin-block: 6px; overflow: hidden; background: #ffffff0a; border-radius: 3px; }
+.review-bar-track > span { display: block; height: 100%; border-radius: inherit; }
+.review-bar-estimate { background: var(--accent); }
+.review-bar-actual { background: var(--success); }
+.review-bar-reason { background: var(--warning); }
+.review-legend { font-size: 12px; }
+.weekly-reason { margin-block: 18px; padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+.review-reason-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.review-reason-caption p { margin: 0 0 8px; }
+.review-count { flex-shrink: 0; color: var(--warning); font-size: 13px; font-variant-numeric: tabular-nums; }
+.weekly-reason .review-evidence { margin-top: 12px; }
 .review-evidence { font-size: 14px; }
 .review-evidence summary { color: var(--muted); }
 .review-evidence ul { padding-left: 20px; }
 .review-evidence li { margin-block: 12px; line-height: 1.6; }
 .review-evidence li p { margin: 4px 0; white-space: pre-wrap; }
-.weekly-improvements { padding-left: 24px; line-height: 1.7; }
-.weekly-improvements li { padding-left: 4px; margin-block: 12px; white-space: pre-line; }
+.weekly-improvements { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; padding: 0; list-style: none; counter-reset: review-action; line-height: 1.6; }
+.weekly-improvements li { counter-increment: review-action; padding: 18px; border: 1px solid #0a84ff66; background: #0a84ff0d; border-radius: 6px; white-space: pre-line; }
+.weekly-improvements li::before { content: "TRY " counter(review-action, decimal-leading-zero); display: block; margin-bottom: 10px; color: #70b7ff; font-size: 11px; font-weight: 600; letter-spacing: .08em; }
 .review-sources { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
 .weekly-disclaimer { margin-bottom: 0; padding-top: 12px; font-size: 12px; }
 .weekly-history { margin-top: 20px; }
@@ -210,6 +227,11 @@ textarea { resize: vertical; }
 @media (max-width: 720px) {
   #app { padding: 24px; }
   .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .weekly-report { padding: 16px; }
+  .review-stats { gap: 8px; }
+  .review-stats > div { padding: 12px 8px; }
+  .review-stats dd { font-size: 26px; }
+  .review-reason-caption { flex-wrap: wrap; gap: 4px; }
   .profile-stat { padding: 16px; }
   .focus-layout { grid-template-columns: minmax(0, 1fr); gap: 32px; min-height: auto; padding-block: 16px; }
   .focus-layout .timer { justify-self: center; }

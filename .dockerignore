@@ -1,0 +1,35 @@
+# Local dependencies, native artifacts and generated reports are not portable.
+**/node_modules
+**/dist
+src-tauri/target
+src-tauri/gen
+playwright-report
+test-results
+coverage
+artifacts
+*.tar.gz
+
+# Repository metadata and editor/OS files.
+.git
+.github
+.idea
+.vscode
+**/.DS_Store
+**/*.log
+
+# Never send credentials, linked-project metadata or local databases to the builder.
+**/.env
+**/.env.*
+!**/.env.example
+supabase/.temp
+supabase/.branches
+supabase/.cache
+**/*.p12
+**/*.pfx
+**/*.key
+**/*.pem
+**/AuthKey_*.p8
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite*

@@ -289,6 +289,11 @@ impl Cloud {
             if status == StatusCode::UNAUTHORIZED {
                 return Err(unauthorized());
             }
+            if route == "/functions/v1/weekly-review" {
+                if let Some(error) = review_request_error(status, &value, body["preview"] == true) {
+                    return Err(error);
+                }
+            }
             if status == StatusCode::TOO_MANY_REQUESTS {
                 return Err(CommandError::new(
                     "rate_limited",
@@ -546,6 +551,27 @@ fn validate_url(value: &str) -> Result<()> {
     }
     Ok(())
 }
+// Map known application codes locally, never expose arbitrary provider error text.
+fn review_request_error(status: StatusCode, value: &Value, preview: bool) -> Option<CommandError> {
+    let code = value["error"]["code"].as_str()?;
+    let message = match (status.as_u16(), code) {
+        (429, "rate_limited") if preview => "Preview limit reached. Allow 10 minutes between requests; at most 3 attempts per UTC day. Failed attempts count.",
+        (429, "rate_limited") => "The review retry allowance has been reached. Please try later.",
+        (429, "weekly_limit") => "Your free weekly review allowance has been used.",
+        (409, "running") => "This weekly review is already being generated. Please check again shortly.",
+        (503, "global_limit") => "The free AI allowance has been reached. Your planner is unaffected.",
+        _ => return None,
+    };
+    let safe_code = match code {
+        "rate_limited" => "rate_limited",
+        "weekly_limit" => "weekly_limit",
+        "running" => "running",
+        "global_limit" => "global_limit",
+        _ => return None,
+    };
+    Some(CommandError::new(safe_code, message))
+}
+
 fn validate_email(value: &str) -> Result<&str> {
     let email = value.trim();
     let valid_parts = email.split_once('@').is_some_and(|(local, domain)| {
@@ -566,6 +592,26 @@ fn validate_email(value: &str) -> Result<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn review_errors_distinguish_preview_cooldown_from_other_allowances() {
+        let value = json!({"error": {"code": "rate_limited", "message": "untrusted text"}});
+        let preview = review_request_error(StatusCode::TOO_MANY_REQUESTS, &value, true).unwrap();
+        let serialized = serde_json::to_string(&preview).unwrap();
+        assert!(serialized.contains("10 minutes"));
+        assert!(!serialized.contains("untrusted text"));
+        let scheduled = review_request_error(StatusCode::TOO_MANY_REQUESTS, &value, false).unwrap();
+        assert!(serde_json::to_string(&scheduled)
+            .unwrap()
+            .contains("retry allowance"));
+        assert!(review_request_error(StatusCode::BAD_GATEWAY, &value, true).is_none());
+        assert!(review_request_error(
+            StatusCode::TOO_MANY_REQUESTS,
+            &json!({"error": {"code": "unknown"}}),
+            true
+        )
+        .is_none());
+    }
+
     #[test]
     fn configuration_rejects_credentials_redirect_paths_and_insecure_hosts() {
         for url in [

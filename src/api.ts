@@ -62,6 +62,7 @@ export interface WeeklyReview {
 }
 
 export interface WeeklyOverview {
+  developmentUnlimited?: boolean;
   settings: { enabled: boolean };
   model: string;
   available: boolean;

@@ -1,0 +1,103 @@
+name: Docker
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  containers:
+    # Native runners exercise both architectures, without slow QEMU browser emulation.
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Validate Compose
+        run: docker compose --profile preview --profile test config --quiet
+      - name: Build test runner
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: tests
+          load: true
+          tags: pro-tests:local
+          cache-from: type=gha,scope=tests-${{ runner.arch }}
+          cache-to: type=gha,mode=max,scope=tests-${{ runner.arch }}
+      - name: Run portable suite
+        run: docker compose --profile test run --no-deps --name pro-tests tests
+      - name: Collect browser failure artifacts
+        if: failure()
+        run: |
+          docker cp pro-tests:/app/playwright-report ./playwright-report || true
+          docker cp pro-tests:/app/test-results ./test-results || true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: docker-browser-failures-${{ runner.arch }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Build development server
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: development
+          load: true
+          tags: pro-dev:local
+          cache-from: type=gha,scope=dev-${{ runner.arch }}
+          cache-to: type=gha,mode=max,scope=dev-${{ runner.arch }}
+      - name: Build static preview
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: preview
+          load: true
+          tags: pro-preview:local
+          cache-from: type=gha,scope=preview-${{ runner.arch }}
+          cache-to: type=gha,mode=max,scope=preview-${{ runner.arch }}
+      - name: Smoke-test servers and immutable preview
+        run: |
+          docker compose --profile preview up --no-build --wait --wait-timeout 90 dev preview
+          curl --fail --silent http://127.0.0.1:1420/ > /dev/null
+          test "$(curl --fail --silent http://127.0.0.1:8080/healthz)" = ok
+          curl --fail --silent http://127.0.0.1:8080/ | grep -q '<title>PRO'
+          curl --fail --silent --head http://127.0.0.1:8080/ | grep -qi 'Content-Security-Policy:'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/assets/missing.js)" = 404
+          test "$(docker compose exec -T preview id -u)" != 0
+          docker compose exec -T preview nginx -t
+          if docker compose exec -T preview touch /usr/share/nginx/html/should-not-exist; then
+            echo 'Preview filesystem must be read-only' >&2
+            exit 1
+          fi
+      - name: Stop containers
+        if: always()
+        run: |
+          docker compose --profile preview --profile test down --remove-orphans
+          docker rm -f pro-tests 2>/dev/null || true
+
+  local-backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+          cache: npm
+      - run: npm ci
+      - name: Start official Docker-backed Supabase stack
+        run: npm run backend:start
+      - name: Test real local Auth, PostgREST, migrations and isolation
+        run: npm run test:backend:live
+      - name: Stop local stack
+        if: always()
+        run: npm run backend:stop

@@ -1,0 +1,37 @@
+project_id = "pro"
+
+[api]
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:1420"
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+# Email template must contain {{ .Token }} for the desktop code-entry flow.
+otp_length = 6
+otp_expiry = 600
+
+[auth.rate_limit]
+# Also configure hosted Auth settings, SMTP, CAPTCHA and endpoint rate limits.
+email_sent = 5
+
+[functions.weekly-review]
+# Validate the bearer token with Supabase Auth inside the function, including
+# modern signing keys. Never treat the public project key as user authentication.
+verify_jwt = false

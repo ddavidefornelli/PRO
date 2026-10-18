@@ -1,1 +1,0 @@
-ALTER TABLE tasks ADD COLUMN resources TEXT NOT NULL DEFAULT '[]';

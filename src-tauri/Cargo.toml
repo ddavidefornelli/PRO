@@ -1,7 +1,7 @@
 [package]
 name = "pro"
 version = "0.1.0"
-description = "Local-first daily planning and focus"
+description = "Cloud-backed daily planning and focus"
 authors = ["PRO contributors"]
 edition = "2021"
 
@@ -16,22 +16,23 @@ required-features = ["desktop"]
 
 [features]
 default = ["desktop"]
-desktop = ["dep:tauri", "dep:tauri-build", "dep:rfd", "dep:open"]
+desktop = ["dep:tauri", "dep:tauri-build", "dep:tauri-plugin-single-instance", "dep:rfd", "dep:open"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [], optional = true }
 
 [dependencies]
 tauri = { version = "2", features = [], optional = true }
-chrono = { version = "0.4", features = ["serde"] }
-rusqlite = { version = "0.37", features = ["bundled"] }
+tauri-plugin-single-instance = { version = "2", optional = true }
+chrono = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls"] }
 url = "2"
+base64 = "0.22"
+keyring = { version = "3.6", features = ["windows-native"] }
 rfd = { version = "0.15", optional = true }
 open = { version = "5", optional = true }
-thiserror = "2"
-uuid = { version = "1", features = ["v4"] }
 
-[dev-dependencies]
-tempfile = "3"
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3.7"

@@ -3,6 +3,19 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 .DS_Store
+# Signing identities and notarization private keys must never be committed.
+*.p12
+*.pfx
+*.key
+AuthKey_*.p8
+.env
+.env.*
+!supabase/.env.example
+supabase/.temp/
+supabase/.branches/
 *.db
 *.db-shm
 *.db-wal
+playwright-report/
+test-results/
+coverage/

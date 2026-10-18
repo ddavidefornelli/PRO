@@ -1,3 +1,5 @@
+import { decorativeSvg, element, svgElement } from "./dom";
+
 const MIN = 5;
 const MAX = 60;
 const STEP = 5;
@@ -9,41 +11,30 @@ export function estimateDial(initialMinutes = 30, onCommit?: (minutes: number) =
   let position = minutes;
   let pointer: number | null = null;
   let previousAngle = 0;
-  const wrapper = document.createElement("div");
-  wrapper.className = "estimate-control";
-  const dial = document.createElement("div");
-  dial.className = "estimate-dial";
+  const wrapper = element("div", undefined, "estimate-control");
+  const dial = element("div", undefined, "estimate-dial");
   dial.tabIndex = 0;
   dial.setAttribute("role", "slider");
   dial.setAttribute("aria-label", "Estimated time in minutes");
   dial.setAttribute("aria-valuemin", String(MIN));
   dial.setAttribute("aria-valuemax", String(MAX));
   dial.title = "Turn to set minutes · 5–60 min · Arrow keys adjust by 5 min";
-  const ring = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  ring.setAttribute("viewBox", "0 0 64 64");
-  ring.setAttribute("aria-hidden", "true");
+  const ring = decorativeSvg("0 0 64 64");
   ring.classList.add("estimate-ring");
-  const makeCircle = (className: string) => {
-    const circle = document.createElementNS(ring.namespaceURI, "circle");
-    circle.setAttribute("cx", "32");
-    circle.setAttribute("cy", "32");
-    circle.setAttribute("r", "30.5");
-    circle.setAttribute("pathLength", "60");
-    circle.setAttribute("class", className);
-    return circle;
-  };
+  const makeCircle = (className: string) => svgElement("circle", {
+    cx: "32", cy: "32", r: "30.5", pathLength: String(MAX), class: className,
+  });
   const progress = makeCircle("estimate-ring-progress");
   ring.append(makeCircle("estimate-ring-track"), progress);
-  const readout = document.createElement("span");
-  readout.className = "dial-readout";
+  const readout = element("span", undefined, "dial-readout");
   readout.setAttribute("aria-hidden", "true");
-  const value = document.createElement("strong");
+  const value = element("strong");
   readout.append(value);
   dial.append(ring, readout);
   const update = (snap = true) => {
     minutes = snap ? Math.max(MIN, Math.min(MAX, Math.round(position / STEP) * STEP)) : initialMinutes;
     value.textContent = String(minutes);
-    progress.setAttribute("stroke-dasharray", `${minutes} 60`);
+    progress.setAttribute("stroke-dasharray", `${minutes} ${MAX}`);
     dial.setAttribute("aria-valuenow", String(minutes));
     dial.setAttribute("aria-valuetext", `${minutes} minutes`);
   };

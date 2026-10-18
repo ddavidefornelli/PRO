@@ -9,13 +9,28 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "desktop": "tauri dev",
-    "test": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features",
-    "check": "npm run build && cargo check --manifest-path src-tauri/Cargo.toml"
+    "desktop:mac:check": "node scripts/build-macos.mjs --check",
+    "desktop:mac:release": "node scripts/build-macos.mjs",
+    "test": "npm run test:unit && npm run test:backend && npm run test:native && npm run test:e2e",
+    "test:all": "npm test && npm run check && npm run lint:native",
+    "test:unit": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:native": "cargo test --manifest-path src-tauri/Cargo.toml --no-default-features",
+    "test:e2e": "playwright test",
+    "test:stress": "playwright test --repeat-each=3",
+    "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test-coverage-include=\"src/*.ts\" --test-coverage-include=\"supabase/functions/**/*.ts\" --test tests/*.test.mjs tests/backend/*.test.mjs",
+    "lint:native": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "test:queue": "node --experimental-strip-types --test tests/local-queue*.test.mjs",
+    "test:calendar": "node --experimental-strip-types --test tests/activity-calendar.test.mjs tests/calendar-properties.test.mjs",
+    "test:backend": "node --experimental-strip-types --test tests/backend/*.test.mjs",
+    "check:backend": "tsc --project tsconfig.backend.json",
+    "check": "npm run build && npm run check:backend && cargo check --manifest-path src-tauri/Cargo.toml"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@playwright/test": "^1.64.1",
     "@tauri-apps/cli": "^2.8.0",
     "typescript": "~5.9.3",
     "vite": "^7.1.0"

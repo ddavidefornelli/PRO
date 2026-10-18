@@ -1,193 +1,298 @@
 use crate::{
-    application::{PlanningService, SystemClock},
-    domain::{AppError, Task},
-    infrastructure::SqliteTaskRepository,
+    cloud::{AuthStatus, Cloud, CommandError, Result},
+    resources::{safe_file, safe_link},
 };
-use chrono::NaiveDate;
+use serde_json::{json, Value};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use tauri::{Manager, State};
 
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CommandError {
-    code: &'static str,
-    message: String,
+struct DesktopState {
+    cloud: Arc<Mutex<Option<Arc<Cloud>>>>,
+    generating: Arc<AtomicBool>,
 }
+impl DesktopState {
+    async fn cloud(&self) -> Result<Arc<Cloud>> {
+        self.initialize(Cloud::from_environment).await
+    }
 
-impl From<AppError> for CommandError {
-    fn from(error: AppError) -> Self {
-        let code = match &error {
-            AppError::Validation(_) => "validation",
-            AppError::NotFound => "not_found",
-            AppError::Conflict(_) => "conflict",
-            AppError::Storage(_) | AppError::StateUnavailable => "internal",
-        };
-        let message = if code == "internal" {
-            eprintln!("{error}");
-            "Could not save or load your data. Please restart the app and try again.".into()
-        } else {
-            error.to_string()
-        };
-        Self { code, message }
+    async fn initialize(
+        &self,
+        create: impl FnOnce() -> Result<Cloud> + Send + 'static,
+    ) -> Result<Arc<Cloud>> {
+        let state = Arc::clone(&self.cloud);
+        blocking(move || {
+            let mut saved = state.lock().map_err(|_| {
+                CommandError::new(
+                    "internal",
+                    "Could not initialize your session. Restart PRO.",
+                )
+            })?;
+            if let Some(cloud) = saved.as_ref() {
+                return Ok(Arc::clone(cloud));
+            }
+            // Keychain calls and reqwest's blocking client must never initialize
+            // on an async executor thread. Failed attempts remain retryable.
+            let cloud = Arc::new(create()?);
+            *saved = Some(Arc::clone(&cloud));
+            Ok(cloud)
+        })
+        .await
     }
 }
-
-#[tauri::command]
-fn dashboard(
-    service: State<'_, PlanningService>,
-) -> Result<crate::application::Dashboard, CommandError> {
-    service.dashboard().map_err(Into::into)
+async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T> + Send + 'static,
+) -> Result<T> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|_| {
+            CommandError::new(
+                "internal",
+                "The request could not finish. Refresh before retrying.",
+            )
+        })?
 }
-
 #[tauri::command]
-fn create_task(
-    service: State<'_, PlanningService>,
-    outcome: String,
-    day: String,
-    estimated_minutes: u32,
-) -> Result<Task, CommandError> {
-    let day = NaiveDate::parse_from_str(&day, "%Y-%m-%d")
-        .map_err(|_| AppError::Validation("Use a valid date (YYYY-MM-DD).".into()))?;
-    service
-        .create_task(&outcome, day, estimated_minutes)
-        .map_err(Into::into)
+async fn auth_status(state: State<'_, DesktopState>) -> Result<AuthStatus> {
+    let cloud = state.cloud().await?;
+    blocking(move || cloud.auth_status()).await
 }
-
 #[tauri::command]
-fn rename_task(service: State<'_, PlanningService>, id: String, outcome: String) -> Result<Task, CommandError> {
-    service.rename_task(&id, &outcome).map_err(Into::into)
+async fn request_sign_in_code(state: State<'_, DesktopState>, email: String) -> Result<()> {
+    let cloud = state.cloud().await?;
+    blocking(move || cloud.request_code(&email)).await
 }
-
 #[tauri::command]
-fn change_estimate(service: State<'_, PlanningService>, id: String, minutes: u32) -> Result<Task, CommandError> {
-    service.change_estimate(&id, minutes).map_err(Into::into)
+async fn verify_sign_in_code(
+    state: State<'_, DesktopState>,
+    email: String,
+    code: String,
+) -> Result<AuthStatus> {
+    let cloud = state.cloud().await?;
+    blocking(move || cloud.verify_code(&email, &code)).await
 }
-
 #[tauri::command]
-fn prioritize_task(service: State<'_, PlanningService>, id: String) -> Result<Task, CommandError> {
-    service.prioritize_task(&id).map_err(Into::into)
+async fn sign_out(state: State<'_, DesktopState>) -> Result<()> {
+    let cloud = state.cloud().await?;
+    blocking(move || cloud.sign_out()).await
 }
-
 #[tauri::command]
-fn start_task(service: State<'_, PlanningService>, id: String) -> Result<Task, CommandError> {
-    service.start_task(&id).map_err(Into::into)
+async fn planner_call(
+    state: State<'_, DesktopState>,
+    action: String,
+    args: Value,
+    timezone: String,
+) -> Result<Value> {
+    if !matches!(
+        action.as_str(),
+        "dashboard"
+            | "queue_protocol"
+            | "create_task"
+            | "rename_task"
+            | "change_estimate"
+            | "prioritize_task"
+            | "start_task"
+            | "pause_task"
+            | "stop_timer"
+            | "save_pause_reason"
+            | "resume_task"
+            | "complete_task"
+            | "add_task_link"
+            | "remove_task_resource"
+            | "weekly_overview"
+            | "set_weekly_ai_enabled"
+    ) {
+        return Err(CommandError::new(
+            "validation",
+            "Unsupported planner command.",
+        ));
+    }
+    if action == "add_task_link" {
+        safe_link(args["target"].as_str().unwrap_or(""))?;
+    }
+    let cloud = state.cloud().await?;
+    blocking(move || cloud.planner(&action, args, &timezone)).await
 }
-
-#[tauri::command]
-fn pause_task(
-    service: State<'_, PlanningService>,
-    id: String,
-    reason: String,
-) -> Result<Task, CommandError> {
-    service.pause_task(&id, &reason).map_err(Into::into)
-}
-
-#[tauri::command]
-fn stop_timer(service: State<'_, PlanningService>, id: String) -> Result<Task, CommandError> {
-    service.stop_timer(&id).map_err(Into::into)
-}
-
-#[tauri::command]
-fn save_pause_reason(service: State<'_, PlanningService>, id: String, reason: String) -> Result<(), CommandError> {
-    service.save_pause_reason(&id, &reason).map_err(Into::into)
-}
-
-#[tauri::command]
-fn resume_task(service: State<'_, PlanningService>, id: String) -> Result<Task, CommandError> {
-    service.resume_task(&id).map_err(Into::into)
-}
-
-#[tauri::command]
-fn complete_task(service: State<'_, PlanningService>, id: String) -> Result<Task, CommandError> {
-    service.complete_task(&id).map_err(Into::into)
-}
-
-#[tauri::command]
-fn add_task_link(
-    service: State<'_, PlanningService>,
-    id: String,
-    label: String,
-    url: String,
-) -> Result<Task, CommandError> {
-    service
-        .add_resource(&id, &label, &url, "link")
-        .map_err(Into::into)
-}
-
 #[tauri::command]
 async fn attach_task_file(
-    service: State<'_, PlanningService>,
+    state: State<'_, DesktopState>,
     id: String,
-) -> Result<(), CommandError> {
+    timezone: String,
+) -> Result<()> {
+    let cloud = state.cloud().await?;
     if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
-        let path = file
-            .path()
-            .to_str()
-            .ok_or_else(|| AppError::Validation("This file path is not supported.".into()))?;
-        service.add_resource(&id, &file.file_name(), path, "file")?;
+        let path = safe_file(&file.path().to_string_lossy())?;
+        let label = file.file_name();
+        blocking(move || {
+            cloud.planner(
+                "attach_task_file",
+                json!({"id": id, "label": label, "target": path.to_string_lossy()}),
+                &timezone,
+            )
+        })
+        .await?;
     }
     Ok(())
 }
-
 #[tauri::command]
-fn remove_task_resource(
-    service: State<'_, PlanningService>,
+async fn open_task_resource(
+    state: State<'_, DesktopState>,
     id: String,
     resource_id: String,
-) -> Result<Task, CommandError> {
-    service
-        .remove_resource(&id, &resource_id)
-        .map_err(Into::into)
-}
-
-#[tauri::command]
-fn open_task_resource(
-    service: State<'_, PlanningService>,
-    id: String,
-    resource_id: String,
-) -> Result<(), CommandError> {
-    let resource = service.resource(&id, &resource_id)?;
-    if resource.kind == "file" && !std::path::Path::new(&resource.target).is_file() {
-        return Err(AppError::Validation(
-            "File not found. It may have been moved or deleted; remove it and attach it again."
-                .into(),
+    timezone: String,
+) -> Result<()> {
+    let cloud = state.cloud().await?;
+    let resource = blocking(move || {
+        cloud.planner(
+            "get_task_resource",
+            json!({"id": id, "resourceId": resource_id}),
+            &timezone,
         )
-        .into());
-    }
-    open::that_detached(&resource.target).map_err(|_| {
-        AppError::Validation("Could not open this resource with its default app.".into())
-    })?;
-    Ok(())
+    })
+    .await?;
+    let target = resource["target"]
+        .as_str()
+        .ok_or_else(|| CommandError::new("not_found", "Resource not found."))?;
+    let target = match resource["kind"].as_str() {
+        Some("link") => safe_link(target)?,
+        Some("file") => {
+            let path = safe_file(target)?;
+            let confirmed = rfd::AsyncMessageDialog::new().set_title("Open local file?")
+                .set_description(format!("This path is synced through your account, but its contents are local to this device:\n\n{}\n\nOpen only files you trust.", path.display()))
+                .set_buttons(rfd::MessageButtons::YesNo).show().await;
+            if confirmed != rfd::MessageDialogResult::Yes {
+                return Ok(());
+            }
+            safe_file(&path.to_string_lossy())?
+                .to_string_lossy()
+                .into_owned()
+        }
+        _ => {
+            return Err(CommandError::new(
+                "validation",
+                "Unsupported resource type.",
+            ))
+        }
+    };
+    blocking(move || {
+        open::that_detached(target).map_err(|_| {
+            CommandError::new(
+                "validation",
+                "Could not open this resource with its default app.",
+            )
+        })
+    })
+    .await
 }
-
+#[tauri::command]
+async fn generate_weekly_review(state: State<'_, DesktopState>, timezone: String) -> Result<()> {
+    let cloud = state.cloud().await?;
+    let flag = Arc::clone(&state.generating);
+    if flag.swap(true, Ordering::AcqRel) {
+        return Ok(());
+    }
+    // Reset on errors and panics as well; only one AI request per process can be in flight.
+    struct Reset(Arc<AtomicBool>);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            self.0.store(false, Ordering::Release);
+        }
+    }
+    blocking(move || {
+        let _reset = Reset(flag);
+        cloud.generate_review(&timezone)?;
+        Ok(())
+    })
+    .await
+}
 pub fn run() {
     tauri::Builder::default()
+        // Register before setup so a second launch never reads or rotates credentials.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .setup(|app| {
-            let directory = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&directory)?;
-            let repository = SqliteTaskRepository::open(directory.join("pro.sqlite3"))?;
-            app.manage(PlanningService::new(
-                Box::new(repository),
-                Box::new(SystemClock),
-            ));
+            app.manage(DesktopState {
+                // Let the webview render its loading indicator before Keychain access.
+                cloud: Arc::new(Mutex::new(None)),
+                generating: Arc::new(AtomicBool::new(false)),
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            dashboard,
-            create_task,
-            prioritize_task,
-            rename_task,
-            change_estimate,
-            start_task,
-            pause_task,
-            stop_timer,
-            save_pause_reason,
-            resume_task,
-            complete_task,
-            add_task_link,
+            auth_status,
+            request_sign_in_code,
+            verify_sign_in_code,
+            sign_out,
+            planner_call,
             attach_task_file,
-            remove_task_resource,
-            open_task_resource
+            open_task_resource,
+            generate_weekly_review
         ])
         .run(tauri::generate_context!())
         .expect("Unable to start PRO");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cloud::CredentialStore;
+
+    struct EmptyStore;
+    impl CredentialStore for EmptyStore {
+        fn load(&self) -> Result<Option<String>> {
+            Ok(None)
+        }
+        fn save(&self, _: &str) -> Result<()> {
+            Ok(())
+        }
+        fn clear(&self) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn async_startup_initializes_blocking_client_safely_and_retries_errors() {
+        tauri::async_runtime::block_on(async {
+            let state = DesktopState {
+                cloud: Arc::new(Mutex::new(None)),
+                generating: Arc::new(AtomicBool::new(false)),
+            };
+            let failed = state
+                .initialize(|| Err(CommandError::new("credentials", "Fixture locked store")))
+                .await;
+            assert!(matches!(failed, Err(error) if error.code == "credentials"));
+            let cloud = state
+                .initialize(|| {
+                    Cloud::new(
+                        "https://fixture.invalid".into(),
+                        "sb_publishable_fixture".into(),
+                        Box::new(EmptyStore),
+                    )
+                })
+                .await
+                .unwrap();
+            let cached = state
+                .initialize(|| panic!("must not initialize twice"))
+                .await
+                .unwrap();
+            assert!(Arc::ptr_eq(&cloud, &cached));
+            assert!(cloud.auth_status().unwrap().email.is_none());
+            // Dropping reqwest's blocking runtime also belongs on a blocking worker.
+            blocking(move || {
+                drop(cloud);
+                drop(cached);
+                drop(state);
+                Ok(())
+            })
+            .await
+            .unwrap();
+        });
+    }
 }

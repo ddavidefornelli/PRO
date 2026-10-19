@@ -27,7 +27,7 @@ export async function database() {
   const dates = (await db.query(`select
     (now() at time zone 'UTC')::date::text today,
     ((now() at time zone 'UTC')::date + 1)::text tomorrow,
-    (date_trunc('week', now() at time zone 'UTC')::date - 7)::text week,
+    (public.planner_review_schedule('UTC')->>'start') week,
     floor(extract(epoch from now()))::bigint::text epoch`)).rows[0];
   async function as(user, work, role = "authenticated", claims = {}) {
     // The role and claims cannot leak into the next fixture, including after SQL errors.

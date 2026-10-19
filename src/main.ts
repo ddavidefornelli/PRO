@@ -9,6 +9,7 @@ import { errorMessage } from "./errors";
 import { isDayComplete, PLANNER_LIMITS, trackedSeconds } from "./planner";
 import { formatDuration } from "./time";
 import { focusDuration } from "../shared/task-timing";
+import { supportFooter } from "./support";
 import "./styles.css";
 
 type View = "today" | "focus" | "tomorrow" | "habits" | "profile";
@@ -83,7 +84,7 @@ class PlanningApplication {
     };
     this.client.onQueueChange = updateSyncStatus;
     this.syncBar.append(this.syncLabel, discard);
-    this.root.append(this.account, this.navigation, this.syncBar, this.alert, this.content);
+    this.root.append(this.account, this.navigation, this.syncBar, this.alert, this.content, supportFooter());
     updateSyncStatus();
     new ResizeObserver(() => this.updateNavigationIndicator()).observe(this.navigation);
     await this.refresh(true);
@@ -180,7 +181,10 @@ class PlanningApplication {
     this.updateNavigationIndicator();
     this.content.replaceChildren();
     if (this.view === "profile") {
-      this.content.append(profilePage(this.email, this.data, () => this.signOut(), Math.floor((Date.now() + this.clockOffset) / 1000)));
+      const profile = profilePage(this.email, this.data, () => this.signOut(), Math.floor((Date.now() + this.clockOffset) / 1000));
+      profile.insertBefore(this.weeklyReview.settingsElement, profile.querySelector(".profile-footer"));
+      this.content.append(profile);
+      void this.weeklyReview.refresh();
       return;
     }
     if (!this.data) {
@@ -424,11 +428,26 @@ class PlanningApplication {
     attach.append(icon);
     form.append(url, save, attach);
     if (resourcesButton) form.append(resourcesButton);
+    url.addEventListener("input", () => url.setCustomValidity(""));
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (!form.reportValidity()) return;
       const target = url.value.trim();
-      const parsed = new URL(target);
+      if (new TextEncoder().encode(target).byteLength > PLANNER_LIMITS.resourceTargetLength) {
+        url.setCustomValidity("This link is too long. Use a shorter link.");
+        form.reportValidity();
+        return;
+      }
+      let parsed: URL;
+      try {
+        parsed = new URL(target);
+        if (!/^https?:\/\//i.test(target) || !["http:", "https:"].includes(parsed.protocol)
+          || !parsed.hostname || parsed.username || parsed.password || /[\u0000-\u0020\u007f]/.test(target)) throw new Error("Invalid link");
+      } catch {
+        url.setCustomValidity("Use an HTTP or HTTPS link without a username or password. Use Attach file for local documents.");
+        form.reportValidity();
+        return;
+      }
+      if (!form.reportValidity()) return;
       const label = `${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`.slice(0, PLANNER_LIMITS.resourceLabelLength);
       void this.mutate(() => this.client.addLink(task.id, label, target), form);
     });
@@ -456,8 +475,10 @@ class PlanningApplication {
     submit.setAttribute("aria-label", "Add task");
     submit.disabled = this.busy;
     form.append(outcomeLabel, estimate.element, submit);
+    outcome.addEventListener("input", () => outcome.setCustomValidity(""));
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      outcome.setCustomValidity(outcome.value.trim() ? "" : "Please write an outcome for this task.");
       if (!form.reportValidity()) return;
       void this.mutate(
         () => this.client.create(outcome.value, day, estimate.minutes()),
@@ -574,7 +595,7 @@ class PlanningApplication {
     this.activityCalendar.update(this.data!.today, this.data!.completions);
     this.content.append(
       this.activityCalendar.element,
-      this.weeklyReview.element,
+      this.weeklyReview.show(),
     );
     void this.weeklyReview.refresh();
   }

@@ -20,12 +20,33 @@ test("on-demand button generates a current-week preview and keeps saved reports 
     await panel.refresh();
   });
   const panel = page.locator("#preview-fixture");
+  await expect(panel.locator(".weekly-settings")).toHaveCount(0);
+  await expect(panel).not.toContainText("Your week at a glance");
+  await expect(panel).not.toContainText("No tasks or stops were recorded");
+  await expect(panel.getByRole("button")).toHaveCount(1);
   await panel.getByRole("button", { name: "Review this week so far" }).click();
   await expect(panel.getByRole("button", { name: "Creating review…" })).toBeDisabled();
   await page.evaluate(() => window.releasePreview());
-  await expect(panel.locator(".weekly-preview")).toContainText("A partial week with one completion.");
-  await expect(panel.locator(".weekly-task-timing")).toContainText("40m actual focus time · 10m over estimate");
+  await expect(panel.locator(".weekly-preview")).toContainText("Try a 40-minute estimate.");
+  await expect(panel.locator(".weekly-preview")).not.toContainText("A partial week with one completion.");
+  await expect(panel.locator(".weekly-preview")).not.toContainText("2026");
+  await expect(panel.locator(".review-timing-delta")).toHaveText("Outside margin · 10m over estimate");
+  await expect(panel.locator(".review-timing-comparison")).toHaveClass(/is-orange/);
+  await expect(panel.locator(".review-timing-label")).toHaveText(["Average estimate", "Average actual"]);
+  await expect(panel.locator(".review-timing-value")).toHaveText(["30m", "40m"]);
+  await expect(panel.locator(".weekly-preview h4")).toHaveText([
+    "Reduce distractions · Try next week",
+    "Estimated vs actual task time",
+    "Comprehensive review",
+  ]);
+  expect(await panel.locator(".weekly-preview").evaluate((element) => {
+    const content = element.textContent;
+    return content.indexOf("10m over estimate") < content.indexOf("Comprehensive review");
+  })).toBe(true);
   await expect(panel.getByRole("button", { name: "Review this week so far" })).toBeEnabled();
+  await expect(panel).not.toContainText("Your on-demand review is ready");
+  await expect(panel).not.toContainText("On-demand preview");
+  await expect(panel.locator(".review-sources, .weekly-disclaimer")).toHaveCount(0);
 });
 
 test("preview requires consent and safely displays no-data and quota feedback", async ({ page }) => {
@@ -43,7 +64,7 @@ test("preview requires consent and safely displays no-data and quota feedback", 
     panel.element.id = "preview-fixture"; document.body.append(panel.element); await panel.refresh();
   });
   const panel = page.locator("#preview-fixture");
-  await expect(panel.getByRole("button", { name: "Review this week so far" })).toBeDisabled();
+  await expect(panel.getByRole("button", { name: "Review this week so far" })).toHaveCount(0);
   await page.evaluate(() => window.enablePreviewFixture());
   await panel.getByRole("button", { name: "Review this week so far" }).click();
   await expect(panel).toContainText("No activity recorded this week yet. No AI request was made.");

@@ -16,18 +16,18 @@ Focused commands: `test:unit`, `test:queue`, `test:calendar`, `test:backend`, `t
 
 ## Verification results
 
-The suite contains **609 tests**:
+The suite contains **691 tests**. See the [beta readiness audit](docs/beta-readiness.md) for the latest user-flow findings and release checklist.
 
 | Layer | Tests | What actually executes |
 | --- | ---: | --- |
-| Frontend logic / persistence | 110 | TypeScript queue, calendar, stats and shared planner/time logic; controlled storage, clocks, transport and lock fixtures |
-| Backend / integrations | 317 | All four actual SQL migrations in PGlite, RLS/privileges, Edge validation/handler/platform/provider code, queue-to-SQL and complete Edge-to-SQL pipelines |
-| Native | 52 | Rust auth/session and HTTP adapter against localhost TCP fixtures; real temporary files and Unix permissions/symlinks; in-memory credentials |
-| Browser workflows | 130 | 65 scenarios in **both Chromium and WebKit**, real application UI, localStorage and Web Locks, actual migrated SQL behind fixture native IPC |
+| Frontend logic / persistence | 125 | TypeScript queue, calendar, stats and shared planner/time logic; controlled storage, clocks, transport and lock fixtures |
+| Backend / integrations | 333 | All eight actual SQL migrations in PGlite, RLS/privileges, Edge validation/handler/platform/provider code, queue-to-SQL and complete Edge-to-SQL pipelines |
+| Native | 53 | Rust auth/session and HTTP adapter against localhost TCP fixtures; real temporary files and Unix permissions/symlinks; in-memory credentials |
+| Browser workflows | 180 | 90 scenarios in **both Chromium and WebKit**, real application UI, localStorage and Web Locks, actual migrated SQL behind fixture native IPC |
 
-The browser stress command repeats each scenario three times (**390 executions**, no automatic retries). The SQL command storm performs **400 seeded actions**, checking invariants after every success/rejection. Independent timer oracles check **100 work/pause segments for each of four seeds**. Separate tests race twelve queue instances, and two real browser windows exercise shared storage and Web Locks.
+The browser stress command repeats each scenario three times (**540 executions**, no automatic retries). The SQL command storm performs **400 seeded actions**, checking invariants after every success/rejection. Independent timer oracles check **100 work/pause segments for each of four seeds**. Separate tests race twelve queue instances, and two real browser windows exercise shared storage and Web Locks.
 
-Node coverage measured with `test:coverage`: **89.05% lines / 98.12% branches** across the loaded modules. All four weekly-review backend modules have **100% line coverage**; the queue has **98.10% line coverage**. This is **not whole-application coverage**: browser-only entrypoints and Rust are not instrumented by that command, and the shared DOM helpers and calendar renderer are exercised by browser tests rather than the Node coverage run.
+Node coverage measured with `test:coverage`: **89.47% lines / 98.00% branches** across the loaded modules. All four weekly-review backend modules have **100% line coverage**; the queue has **98.10% line coverage**. This is **not whole-application coverage**: browser-only entrypoints and Rust are not instrumented by that command, and the shared DOM helpers and calendar renderer are exercised by browser tests rather than the Node coverage run.
 
 The cleanup adds explicit tests for shared day/time calculations, projection/acknowledgement immutability, and batched snapshot replay without changing durable state. Queue storage version 1, retry/locking behavior and server protocols remain unchanged. Three stale browser scenarios (six failures across both engines before this refactor) now assert the existing date heading and Escape-preserved pause dialog behavior; the UI was not changed to satisfy the old expectations.
 
@@ -80,8 +80,14 @@ The cleanup adds explicit tests for shared day/time calculations, projection/ack
 | Focus/poll refresh could rebuild the planner while typing, deleting an unsubmitted draft. | Refresh defers while an input/textarea/slider is focused; regression in both browser engines. |
 | Failed AI-enable saves still triggered generation and replaced the settings error. The server's consent gate already prevented a provider call. | Generation starts only after successful persisted enabling; both-browser regression. |
 | Missing/multiple email `@` parts were accepted locally and unnecessarily sent to Auth. | Native email validation rejects empty local/domain parts and extra separators before HTTP; native input matrix. |
+| The eight-box sign-in form rejected six-digit local Auth codes and truncated longer hosted codes. | The UI accepts 6–10 digits, adapts boxes on paste/autofill or longer typing, rejects gaps, and resets on resend. Both-browser regressions cover every supported length. |
+| Whitespace-only new outcomes and unsupported/credential-bearing URLs could enter the durable outbox, then be rejected by the backend. | Validate before enqueue, retain editable input, and check URL UTF-8 byte limits. Both-browser regressions verify no queued write and successful correction. |
+| AI settings errors rendered only in the detached Overview panel when preferences were changed from Profile. | Loading/save failures and retry controls render in the visible settings surface. Both-browser regressions cover initial load failure and rejected consent saves. |
+| Global focus suppression left the outcome field and estimate dial without visible keyboard focus. | A global `:focus-visible` outline restores keyboard feedback without adding pointer-click outlines. Both-browser regression. |
 
-**Deployment action:** apply the fourth migration to an existing Supabase deployment. No migrations were deployed and no remote data was reset by these tests.
+The beta audit adds **19 scenarios / 38 browser tests**, including support-link success/failure, availability before sign-in, and layout checks that include the footer. `cargo test --manifest-path src-tauri/Cargo.toml --lib` also passes five tests with desktop features enabled (including the startup initialization test excluded by `test:native`). `npm audit --audit-level=high` reports zero known npm vulnerabilities; this does not audit Rust dependencies.
+
+**Deployment action:** apply all unapplied migrations in order, including the preview, stop-filtering, development-limit and Sunday-schedule migrations. Keep `development_unlimited = false` in production. No migrations were deployed and no remote data was reset by these tests.
 
 ## Safety and limits
 

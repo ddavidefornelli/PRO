@@ -8,7 +8,7 @@ An authenticated daily planning desktop app built with **Rust, Tauri 2, and Supa
 
 Install Node.js 22.12+ (or current LTS), a stable Rust toolchain, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-1. Set up a fresh Supabase project using [supabase/README.md](supabase/README.md). Apply **all four migrations**, enable email Auth, and configure the email template to show `{{ .Token }}`. Anonymous sign-in is not used.
+1. Set up a fresh Supabase project using [supabase/README.md](supabase/README.md). Apply **all migrations in order** (currently eight), enable email Auth, and configure the email template to show `{{ .Token }}`. Anonymous sign-in is not used.
 2. Set the public desktop configuration in the shell that launches/builds PRO:
 
    ```sh
@@ -110,7 +110,8 @@ The device supplies its IANA timezone; Postgres validates it. Normal online oper
 
 AI is optional and disabled by default per account and globally. See [backend setup](supabase/README.md) to deploy the function, configure its OpenAI secret, enable the global allowance, and schedule cleanup. Desktop users do not need provider credentials.
 
-- Reviews the previous complete Monday–Sunday, generated on launch/once per minute while signed in and due. Missed weeks collapse to the latest complete week. No server scheduler generates reviews while every client is closed.
+- Scheduled reviews become due **Sunday at 4:00 p.m. local time** and cover Monday through the generation snapshot; later Sunday activity is not included. PRO checks on launch/once per minute while signed in. Missed weeks collapse to the latest due week. No server scheduler generates reviews while every client is closed.
+- Overview also offers **Review this week so far**, a session-only preview separate from saved scheduled reviews. Production previews allow three attempts per UTC day, at least ten minutes apart. Keep development-only unlimited allowances disabled in production.
 - Summarizes the week, identifies evidence-linked themes in stop reasons, and suggests 1–3 small improvements. Task value is not scored. AI never edits planner state.
 - The Edge Function authenticates the email account, loads activity and consent from Postgres, reserves a quota slot, calls a fixed OpenAI model, validates output, and saves the review and source snapshot in Supabase.
 - Clients send **only the timezone**, not arbitrary prompts, user IDs, models, or activity. Resource metadata and contents are excluded. Sensitive text directly entered in titles/reasons is still processed.
@@ -155,6 +156,6 @@ npm run test:queue
 npm run test:e2e
 ```
 
-See [TESTING.md](TESTING.md) for coverage, regression findings and limitations. Tests use the actual migrations and browser UI but fixture native IPC, authentication and provider transport. They do not deploy a project, access the real keychain, send email, open user files or issue paid API requests. PGlite tests are not multi-connection load tests. Hosted email delivery, native credential prompts, cross-device concurrent actions, and Windows/macOS file opening require manual release smoke tests.
+See [TESTING.md](TESTING.md) for coverage, regression findings and limitations, and the [beta readiness audit](docs/beta-readiness.md) for the latest verification and prioritized release checklist. Tests use the actual migrations and browser UI but fixture native IPC, authentication and provider transport. They do not deploy a project, access the real keychain, send email, open user files or issue paid API requests. PGlite tests are not multi-connection load tests. Hosted email delivery, native credential prompts, cross-device concurrent actions, and Windows/macOS file opening require manual release smoke tests.
 
 A signed macOS `.app` build with optional notarization is available via `npm run desktop:mac:release`; it requires your Apple Developer identity. DMG/Windows installer signing, a secure updater, account-deletion UI, white noise, and carrying/dropping unfinished tasks are not implemented. Default installer bundling remains disabled.

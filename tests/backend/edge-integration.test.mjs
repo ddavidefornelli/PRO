@@ -72,7 +72,7 @@ test("full Edge preview pipeline uses separate leases, returns a transient repor
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.review.weekEnd, f.dates.today);
-  assert.equal(body.review.activity.tasks[0].outcome, "Current task");
+  assert.ok(body.review.activity.tasks.some((task) => task.outcome === "Current task"));
   assert.deepEqual(body.review.analysis, output);
   assert.deepEqual((await f.call("weekly_overview")).reviews, []);
   assert.equal((await f.db.query("select count(*)::int n from public.ai_review_requests")).rows[0].n, 0);

@@ -20,6 +20,8 @@ test("startup shows a visual status until authentication completes", async ({ pa
   const loading = page.getByRole("status", { name: "Loading PRO" });
   await expect(loading).toBeVisible();
   await expect(loading).toHaveText("");
+  await expect(page.locator(".support-footer a")).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
   await expect(loading.locator(".startup-ring")).toHaveCSS("animation-name", "startup-spin");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(loading.locator(".startup-ring")).toHaveCSS("animation-name", "none");

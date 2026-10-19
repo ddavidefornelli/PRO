@@ -29,7 +29,7 @@ export const test = base.extend({
         if (state.signOutError) throw { code: "credentials", message: state.signOutError };
         state.signedIn = false; return null;
       }
-      if (command === "attach_task_file" || command === "open_task_resource") return null;
+      if (command === "attach_task_file" || command === "open_task_resource" || command === "open_support_email") return null;
       if (command === "generate_weekly_review") throw { code: "ai", message: "Fixture AI unavailable. Your planner is unaffected." };
       if (command !== "planner_call") throw new Error(`Unexpected fixture command: ${command}`);
       if (state.offline) throw { code: "network", message: "Offline. Changes remain on this device." };

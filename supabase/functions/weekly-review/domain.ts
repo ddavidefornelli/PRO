@@ -71,7 +71,8 @@ export function validateInput(value: unknown, now: Date, preview = false): Revie
   }
   const weekStart = date(input.weekStart);
   const weekEnd = date(input.weekEnd);
-  // Accept the latest closed week in any real device timezone at UTC boundaries.
+  // Accept the latest due week in any real timezone, including Sunday 16:00.
+  // The service-only SQL loader selects the exact local schedule boundary.
   const validWeeks = [-1, 0, 1].map((offset) => previousMonday(new Date(now.getTime() + offset * DAY_MS)));
   if (preview) {
     const localDays = [-1, 0, 1].map((offset) => new Date(now.getTime() + offset * DAY_MS).toISOString().slice(0, 10));

@@ -20,8 +20,10 @@ test("review inputs exclude placeholder stops before counting and limiting, with
     }
     for (const rpc of ["planner_review_input", "planner_preview_input"]) {
       const input = (await f.db.query(`select public.${rpc}($1, 'UTC') result`, [ALICE])).rows[0].result;
-      assert.deepEqual(input.activity.stops.map((s) => s.reason), ["Spotify"]);
-      assert.equal(input.activity.totalStops, 1);
+      // After Sunday 16:00, scheduled and preview ranges can overlap.
+      const count = [f.dates.week, f.dates.today].filter((day) => day >= input.weekStart && day <= input.weekEnd).length;
+      assert.deepEqual(input.activity.stops.map((s) => s.reason), Array(count).fill("Spotify"));
+      assert.equal(input.activity.totalStops, count);
       assert.equal(input.activity.omittedStops, 0);
     }
     assert.equal((await f.db.query("select count(*)::integer n from public.planner_stops where reason = 'Reason not provided'")).rows[0].n, 410);

@@ -3,9 +3,12 @@ import { PlanningClient, type AuthStatus } from "./api";
 
 import { element as node } from "./dom";
 import { errorMessage } from "./errors";
+import { supportFooter } from "./support";
 
 const REQUEST_ERROR = "The request could not be completed. Please try again.";
-const CODE_LENGTH = 8;
+const MIN_CODE_LENGTH = 6;
+const MAX_CODE_LENGTH = 10;
+const DEFAULT_CODE_LENGTH = 8;
 
 /** A reload at account boundaries discards all views, polls and in-memory data from the old account. */
 export async function authenticate(root: HTMLElement, client: PlanningClient): Promise<AuthStatus | null> {
@@ -15,9 +18,9 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
   const ring = node("span", undefined, "startup-ring");
   ring.setAttribute("aria-hidden", "true");
   loading.append(ring);
-  root.replaceChildren(loading);
+  root.replaceChildren(loading, supportFooter());
   if (!isTauri()) {
-    root.replaceChildren(node("p", "Open PRO as a desktop app with npm run desktop. The native runtime protects your session credentials."));
+    root.replaceChildren(node("p", "Open PRO as a desktop app with npm run desktop. The native runtime protects your session credentials."), supportFooter());
     return null;
   }
   // Native permission dialogs have no deadline. Stop animating after a bounded
@@ -31,7 +34,7 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
     retry.type = "button";
     retry.addEventListener("click", () => window.location.reload());
     stalled.append(heading, message, retry);
-    root.replaceChildren(stalled);
+    root.replaceChildren(stalled, supportFooter());
   }, 30_000);
   let initialError = "";
   try {
@@ -56,50 +59,73 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
   codeLabel.append(node("legend", "Code from your email"));
   const codeBoxes = node("div", undefined, "otp-boxes");
   const digits: HTMLInputElement[] = [];
+  const resizeCode = (length: number): void => {
+    while (digits.length > length) digits.pop()!.remove();
+    while (digits.length < length) {
+      const digit = makeDigit(digits.length);
+      digits.push(digit);
+      codeBoxes.append(digit);
+    }
+    digits.forEach((digit, index) => digit.setAttribute("aria-label", `Digit ${index + 1} of ${length}`));
+    codeBoxes.style.setProperty("--code-length", String(length));
+  };
   const distribute = (text: string, start: number): void => {
-    const values = text.replace(/\D/g, "").slice(0, CODE_LENGTH);
+    const values = text.replace(/\D/g, "").slice(0, MAX_CODE_LENGTH);
     if (!values) return;
-    const offset = values.length === CODE_LENGTH ? 0 : start;
-    for (let i = offset; i < CODE_LENGTH; i++) digits[i]!.value = values[i - offset] ?? "";
-    const next = digits[Math.min(offset + values.length, CODE_LENGTH - 1)]!;
+    const complete = values.length >= MIN_CODE_LENGTH;
+    if (complete) resizeCode(values.length);
+    else if (start + values.length > digits.length) resizeCode(Math.min(MAX_CODE_LENGTH, start + values.length));
+    const offset = complete ? 0 : start;
+    for (let i = offset; i < digits.length; i++) digits[i]!.value = values[i - offset] ?? "";
+    digits[0]!.setCustomValidity("");
+    const next = digits[Math.min(offset + values.length, digits.length - 1)]!;
     next.focus();
     next.select();
   };
-  for (let index = 0; index < CODE_LENGTH; index++) {
+  function makeDigit(index: number): HTMLInputElement {
     const digit = node("input");
     digit.type = "text";
     digit.inputMode = "numeric";
     digit.autocomplete = index === 0 ? "one-time-code" : "off";
     digit.pattern = "[0-9]";
-    digit.setAttribute("aria-label", `Digit ${index + 1} of ${CODE_LENGTH}`);
+    digit.required = index < MIN_CODE_LENGTH;
     digit.addEventListener("focus", () => digit.select());
     digit.addEventListener("paste", (event) => {
       event.preventDefault();
       distribute(event.clipboardData?.getData("text") ?? "", index);
     });
     digit.addEventListener("input", () => {
+      digits[0]!.setCustomValidity("");
       const value = digit.value.replace(/\D/g, "");
       if (value.length > 1) distribute(value, index);
       else {
         digit.value = value;
-        if (value && index < CODE_LENGTH - 1) digits[index + 1]!.focus();
+        if (value && index < digits.length - 1) digits[index + 1]!.focus();
       }
     });
     digit.addEventListener("keydown", (event) => {
+      digits[0]!.setCustomValidity("");
       if (event.key === "Backspace" && !digit.value && index > 0) {
         event.preventDefault();
         digits[index - 1]!.value = "";
         digits[index - 1]!.focus();
       } else if (event.key === "ArrowLeft" && index > 0) {
         event.preventDefault(); digits[index - 1]!.focus();
-      } else if (event.key === "ArrowRight" && index < CODE_LENGTH - 1) {
+      } else if (event.key === "ArrowRight" && index < digits.length - 1) {
         event.preventDefault(); digits[index + 1]!.focus();
+      } else if (/^[0-9]$/.test(event.key) && !event.metaKey && !event.ctrlKey && !event.altKey
+        && index === digits.length - 1 && digit.value && digit.selectionStart === digit.selectionEnd && digits.length < MAX_CODE_LENGTH) {
+        event.preventDefault();
+        resizeCode(digits.length + 1);
+        digits[index + 1]!.value = event.key;
+        digits[index + 1]!.focus();
+        digits[index + 1]!.setSelectionRange(1, 1);
       }
     });
-    digits.push(digit);
-    codeBoxes.append(digit);
+    return digit;
   }
-  codeLabel.append(codeBoxes);
+  resizeCode(DEFAULT_CODE_LENGTH);
+  codeLabel.append(codeBoxes, node("p", "Enter the 6–10 digit code from your email.", "muted"));
   codeLabel.hidden = true;
   codeLabel.disabled = true;
   const submit = node("button", "Send sign-in code");
@@ -117,6 +143,8 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
   let sent = false;
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const code = digits.map((digit) => digit.value || " ").join("").trimEnd();
+    if (sent) digits[0]!.setCustomValidity(/^[0-9]{6,10}$/.test(code) ? "" : "Enter the complete 6–10 digit code without gaps.");
     if (!form.reportValidity()) return;
     submit.disabled = true;
     resend.disabled = true;
@@ -126,7 +154,7 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
         await client.requestSignInCode(email.value.trim());
         sent = true;
         email.readOnly = true;
-        digits.forEach((digit) => { digit.required = true; });
+        digits.forEach((digit, index) => { digit.required = index < MIN_CODE_LENGTH; });
         codeLabel.disabled = false;
         codeLabel.hidden = false;
         resend.hidden = false;
@@ -134,7 +162,7 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
         notice.textContent = "If this address can sign in, a code has been sent. Check your inbox and spam folder.";
         digits[0]!.focus();
       } else {
-        await client.verifySignInCode(email.value.trim(), digits.map((digit) => digit.value).join(""));
+        await client.verifySignInCode(email.value.trim(), code);
         window.location.reload();
       }
     } catch (cause) { alert.textContent = errorMessage(cause, REQUEST_ERROR); }
@@ -143,7 +171,8 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
   resend.addEventListener("click", () => {
     sent = false;
     email.readOnly = false;
-    digits.forEach((digit) => { digit.value = ""; digit.required = false; });
+    resizeCode(DEFAULT_CODE_LENGTH);
+    digits.forEach((digit) => { digit.value = ""; digit.required = false; digit.setCustomValidity(""); });
     codeLabel.disabled = true;
     codeLabel.hidden = true;
     resend.hidden = true;
@@ -153,6 +182,6 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
   });
   form.append(emailLabel, codeLabel, submit, resend);
   section.append(node("h1", "Sign in to PRO"), node("p", "Sign-in requires internet. Your planner syncs to Supabase; a local snapshot and pending changes are also stored on this device, unencrypted in app storage. Attached file contents are never uploaded."), form, notice, alert, reconnect);
-  root.replaceChildren(section);
+  root.replaceChildren(section, supportFooter());
   return null;
 }

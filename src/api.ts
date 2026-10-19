@@ -66,7 +66,7 @@ export interface WeeklyOverview {
   settings: { enabled: boolean };
   model: string;
   available: boolean;
-  week: { start: string; end: string; nextUpdate: string };
+  week: { start: string; end: string; nextUpdate: string; nextUpdateAt?: string };
   status: "disabled" | "unavailable" | "pending" | "running" | "failed" | "no_data" | "up_to_date";
   error: string | null;
   reviews: WeeklyReview[];

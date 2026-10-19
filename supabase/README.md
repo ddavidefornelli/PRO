@@ -47,6 +47,22 @@ PRO recognizes these fixed messages and displays an `email_delivery` error with 
 
 A **429** is a rate limit, not the same failure. Wait and inspect hosted Auth/provider limits instead of repeatedly requesting codes. Do not disable email confirmation, expose privileged keys in the app, or reset the database to work around email delivery. Local fixture tests do not verify real hosted SMTP; run the hosted signup/returning-user smoke tests after configuration changes.
 
+## Development review limits
+
+Local database seeding enables unlimited AI review attempts and removes request
+cooldowns. It does not enable AI itself, bypass user consent, or permit concurrent
+duplicate generation. Production migrations keep limits enabled by default.
+
+For an existing development database, apply
+`20261018000300_development_review_limits.sql`, then run as a database administrator:
+
+```sql
+update public.ai_controls set development_unlimited = true where id;
+```
+
+Do not enable this flag in production. Set it back to `false` to restore app quotas.
+OpenAI or Supabase infrastructure limits are independent of this flag.
+
 ## 2. Apply database migrations
 
 With the Supabase CLI installed (or using `npx supabase`):
@@ -57,13 +73,17 @@ npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-Apply all four migrations in order:
+Apply all eight migrations in order:
 
 1. `20261017000100_weekly_reviews.sql`: private AI controls, quota state, leases and service-only RPCs; AI defaults off.
 2. `20261017000200_cloud_planner.sql`: authenticated planner tables/RLS, atomic planner RPC, server-owned activity loading and durable AI reviews.
 3. `20261017000300_local_queue.sql`: private executor, authenticated queue-protocol check, bounded action-time replay, stable entity IDs, conflict checks, and atomic per-user idempotency receipts. **Required before the desktop queue can sync.** This migration can also be applied incrementally to a project already using the first two; no reset is required.
 
 4. `20261017000400_review_lease_validation.sql`: rejects null/mismatched AI lease tokens and missing consent revisions when persisting a review. Apply this incremental hardening migration to existing deployments too; it requires no reset.
+5. `20261018000100_review_previews.sql`: adds consent-gated current-week previews with independent per-account quotas and shared global budgets.
+6. `20261018000200_filter_placeholder_review_stops.sql`: excludes placeholder stop reasons from AI input without deleting the original logs.
+7. `20261018000300_development_review_limits.sql`: adds a development-only unlimited mode, **off by default in production**. Do not enable it on the hosted beta project.
+8. `20261018000400_sunday_review_schedule.sql`: schedules reviews for Sunday at 4:00 p.m. local time with timezone/DST-aware catch-up.
 
 They are designed for a **fresh application database**. They do not import/delete SQLite data. Review changes before applying to an existing/shared project. Do not reset an existing remote database unless its contents are intentionally disposable.
 
@@ -108,6 +128,14 @@ These public values can be compiled into releases. Session access tokens stay in
 
 ## 4. Deploy optional weekly AI
 
+Scheduled reviews become due **Sunday at 4:00 p.m. in the device's local timezone**.
+Apply `20261018000400_sunday_review_schedule.sql` to enable this schedule.
+PRO checks while open and catches up at the next launch if closed; there is no
+background delivery while the app is closed. Reviews include Monday through the
+generation snapshot, not activity logged later that Sunday. The manual preview
+remains available independently. IANA timezone calculations preserve 4:00 p.m.
+across daylight-saving changes.
+
 The planner works without enabling AI. To enable it:
 
 ```sh
@@ -136,7 +164,7 @@ The function:
 
 1. Authenticates the verified user.
 2. Accepts only the timezone and optional boolean `preview` flag; rejects client-supplied activity, prompts, models and user IDs.
-3. Loads consent and previous closed local-week activity using the service-only `planner_review_input` RPC.
+3. Loads consent and the latest Sunday-due week's activity snapshot using the service-only `planner_review_input` RPC.
 4. Validates/bounds that activity and atomically reserves a paid attempt with `reserve_planner_review`.
 5. Calls fixed `gpt-4.1-mini` with a server-owned prompt, `store: false`, 6,000 output tokens, 90-second timeout and no redirects.
 6. Validates response sizes/schema/evidence and saves the report plus source activity in `planner_reviews` before returning. Completion requires an unexpired matching lease and unchanged AI consent revision.

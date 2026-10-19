@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { completedTaskTimings, focusDuration } from "../shared/task-timing.ts";
+import { averageTaskTiming, completedTaskTimings, focusDuration } from "../shared/task-timing.ts";
 import { providerBody } from "../supabase/functions/weekly-review/provider.ts";
 
 const task = { id: "a", status: "completed", completedOn: "2026-10-13", estimatedMinutes: 30, actualSeconds: 3300 };
@@ -20,6 +20,41 @@ test("compares whole-task recorded time only for completions within the review w
   assert.equal(completedTaskTimings([{ ...task, actualSeconds: 1800 }], start, end)[0].differenceSeconds, 0);
 });
 
+test("weekly averages use matching recorded tasks, not missing-time or unfinished tasks", () => {
+  const result = averageTaskTiming([
+    { ...task, actualSeconds: 1800 },
+    { ...task, id: "b", estimatedMinutes: 60, actualSeconds: 4200 },
+    { ...task, id: "missing", estimatedMinutes: 10, actualSeconds: 0 },
+    { ...task, id: "unfinished", status: "active", completedOn: null },
+    { ...task, id: "old", completedOn: "2026-10-11" },
+  ], start, end);
+  assert.deepEqual(result, { count: 2, omittedCount: 1, estimatedSeconds: 2700,
+    actualSeconds: 3000, differenceSeconds: 300, severity: "yellow" });
+  assert.equal(averageTaskTiming([], start, end), null);
+  assert.equal(averageTaskTiming([{ ...task, actualSeconds: 0 }], start, end), null);
+});
+
+test("deviation colors are symmetric with inclusive tolerance and severity boundaries", () => {
+  for (const direction of [-1, 1]) {
+    for (const [difference, severity] of [[0, "green"], [180, "green"], [181, "yellow"],
+      [450, "yellow"], [451, "orange"], [900, "orange"], [901, "red"]]) {
+      const result = averageTaskTiming([{ ...task, actualSeconds: 1800 + direction * difference }], start, end);
+      assert.equal(result.severity, severity, `${direction * difference} seconds`);
+    }
+  }
+  assert.equal(averageTaskTiming([{ ...task, estimatedMinutes: 5, actualSeconds: 360 }], start, end).severity, "green");
+  assert.equal(averageTaskTiming([{ ...task, estimatedMinutes: 5, actualSeconds: 239 }], start, end).severity, "yellow");
+});
+
+test("20 tasks produce one pair of per-task averages", () => {
+  const tasks = Array.from({ length: 20 }, (_, i) => ({ ...task, id: String(i), actualSeconds: 1800 + i * 60 }));
+  const result = averageTaskTiming(tasks, start, end);
+  assert.equal(result.count, 20);
+  assert.equal(result.estimatedSeconds, 1800);
+  assert.equal(result.actualSeconds, 2370);
+  assert.equal(result.severity, "orange");
+});
+
 test("focus durations preserve seconds and support tasks longer than an hour", () => {
   for (const [seconds, text] of [[0, "0s"], [1, "1s"], [60, "1m"], [90, "1m 30s"], [3600, "1h"], [7261, "2h 1m 1s"]]) {
     assert.equal(focusDuration(seconds), text);
@@ -32,4 +67,6 @@ test("provider receives server-calculated timing evidence without changing store
   assert.deepEqual(source.activity, input.activity);
   assert.deepEqual(source.completedTaskTimings, completedTaskTimings([task], start, end));
   assert.match(providerBody(input).messages[0].content, /Zero recorded time means insufficient timing evidence/);
+  assert.match(providerBody(input).messages[0].content, /no calendar dates/);
+  assert.match(providerBody(input).messages[0].content, /at most 18 words/);
 });

@@ -20,18 +20,20 @@ Unfinished tasks can be carried forward, rewritten, or dropped.
 
 ## AI
 - Optional, consent-based weekly reflection, posted in Overview once per week.
-- Summarizes the previous complete Monday–Sunday, identifies the main reported reasons for stopping work, compares estimates with whole-task recorded focus time for tasks completed that week, and suggests a few practical improvements for next week.
+- Summarizes the latest Sunday-due week from Monday through the generation snapshot, identifies the main reported reasons for stopping work, compares estimates with whole-task recorded focus time for tasks completed that week, and suggests a few practical improvements for next week. Activity logged later on Sunday is not included.
 - Timing differences are calculated in code. Whole-task time may span weeks and is not a weekly work-time total. Unfinished tasks have no final duration; duration alone does not establish efficiency or causes.
 - Tasks provide context only: no task-value scoring, coping labels, or “moving the boat” suggestions.
 - Grounds interpretations in the recorded reasons, acknowledges missing information, and respects legitimate rest and interruptions.
 - Never changes tasks or timers. Failures leave core features and past reviews available.
-- Runs on Monday while the app is open, or catches up with the latest complete week on the next launch.
+- Becomes due Sunday at 4:00 p.m. in the device's local timezone while the app is open, or catches up with the latest due week on the next launch.
 - Overview also offers “Review this week so far”: an on-demand Monday-through-today preview, separate from scheduled reports, shown for the current app session only. Requires consent and shared budget availability; limited to three attempts per UTC day, at least ten minutes apart. Failures count.
 
 ## Interface
 Four planner views: **Today, Focus, Tomorrow (only if today's tasks are finished), Overview (daily completion grid and saved weekly AI reflections)**.
 
 A top-right **Profile** icon opens a single stats page showing completion totals, active days, streaks, recent activity, today's task focus time and the completion calendar. The account email is right-aligned beside the page heading. A red **Sign out** button sits at the bottom of the stats page; there are no Stats/Logout tabs or separate logout page. Keep copy minimal. Profile access follows the running focus timer's navigation lock; pause first. Pending-change confirmation and cache retention are preserved.
+
+A support footer, including on sign-in/error screens, reads “Any problems with the app? Contact me at: fornelli.dv@gmail.com”. The address is a `mailto:` link opened through the default email application in the desktop runtime, without requiring sign-in.
 
 Minimal, professional, keyboard-friendly. Today and Focus fit within one desktop window without page scrolling, including a full three-task plan. Long resource collections open in a bounded dialog instead of stretching the page; Overview may scroll. During focus, show only the current task, timer, and essential controls.
 

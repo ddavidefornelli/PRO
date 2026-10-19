@@ -187,6 +187,20 @@ async fn open_task_resource(
     .await
 }
 #[tauri::command]
+async fn open_support_email() -> Result<()> {
+    blocking(|| {
+        // Wait for the launcher result on this worker so a missing mail handler
+        // can be reported, without blocking the webview or requiring cloud auth.
+        open::that("mailto:fornelli.dv@gmail.com").map_err(|_| {
+            CommandError::new(
+                "validation",
+                "Could not open your email app. Contact fornelli.dv@gmail.com.",
+            )
+        })
+    })
+    .await
+}
+#[tauri::command]
 async fn generate_weekly_review(
     state: State<'_, DesktopState>,
     timezone: String,
@@ -239,6 +253,7 @@ pub fn run() {
             planner_call,
             attach_task_file,
             open_task_resource,
+            open_support_email,
             generate_weekly_review
         ])
         .run(tauri::generate_context!())

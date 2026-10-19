@@ -1,4 +1,4 @@
-import { test, expect, open } from "./fixtures.mjs";
+import { test, expect, open, add, synced } from "./fixtures.mjs";
 
 const sizes = [
   { width: 640, height: 500 }, // Small desktop client area, excluding window chrome.
@@ -20,7 +20,7 @@ async function seed(backend, count) {
 }
 async function fits(page) {
   const layout = await page.evaluate(() => {
-    const controls = [...document.querySelectorAll("main button:not(.task-crown), main input, main [role=slider], nav, .account-bar")]
+    const controls = [...document.querySelectorAll("main button:not(.task-crown), main input, main [role=slider], nav, .account-bar, .support-footer a")]
       .filter((node) => node.getClientRects().length > 0)
       .map((node) => {
         const box = node.getBoundingClientRect();
@@ -36,6 +36,20 @@ async function fits(page) {
   await page.mouse.wheel(0, 1000);
   await page.evaluate(() => window.scrollTo(0, 1000));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+}
+
+async function taskControlsAlign(page) {
+  const rows = await page.locator(".task").evaluateAll((tasks) => tasks.map((task) => {
+    const controls = [...task.querySelectorAll(".resource-form input, .resource-attach, .resource-count, .task-estimate .estimate-dial, :scope > button:not(.task-crown)")];
+    const boxes = controls.map((node) => node.getBoundingClientRect());
+    const card = task.getBoundingClientRect();
+    return {
+      aligned: boxes.every((box) => Math.abs(box.top - boxes[0].top) <= 1 && Math.abs(box.height - boxes[0].height) <= 1),
+      contained: boxes.every((box) => box.width > 0 && box.left >= card.left && box.right <= card.right && box.bottom <= card.bottom),
+      nonoverlapping: boxes.every((box, i) => i === 0 || box.left >= boxes[i - 1].right),
+    };
+  }));
+  for (const row of rows) expect(row).toEqual({ aligned: true, contained: true, nonoverlapping: true });
 }
 
 async function centredInWindow(page) {
@@ -58,6 +72,7 @@ for (const size of sizes) {
       await page.setViewportSize(size); await seed(backend, count); await open(page);
       await expect(page.locator(".task-list .task")).toHaveCount(count);
       await fits(page);
+      await taskControlsAlign(page);
       if (size.width === 640 && size.height === 500 && count === 3) {
         await page.screenshot({ path: test.info().outputPath("today-small-window.png") });
       }
@@ -95,6 +110,31 @@ for (const size of sizes) {
     await expect(page.getByRole("button", { name: "Return to focus" })).toBeVisible(); await fits(page);
   });
 }
+
+test("task controls stay aligned with zero, one or fifty resources and after resizing", async ({ page, backend }) => {
+  const tasks = await seed(backend, 3);
+  await backend.db.query("delete from public.planner_resources where task_id = $1", [tasks[0].id]);
+  await backend.db.query("delete from public.planner_resources where task_id = $1 and target <> 'https://example.com/document/1'", [tasks[1].id]);
+  await open(page);
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    await fits(page);
+    await taskControlsAlign(page);
+  }
+  await backend.db.query("update public.planner_tasks set status = 'completed', completed_on = planned_for where id = any($1::uuid[])", [tasks.map((task) => task.id)]);
+  await page.reload();
+  await page.getByRole("navigation").getByRole("button", { name: "Tomorrow", exact: true }).click();
+  await add(page, "Tomorrow's aligned task");
+  await synced(page);
+  await page.getByRole("textbox", { name: "Add a link; press Enter to save" }).fill("https://example.com/reference");
+  await page.getByRole("textbox", { name: "Add a link; press Enter to save" }).press("Enter");
+  await expect(page.getByRole("button", { name: "Resources (1)", exact: true })).toBeVisible();
+  await synced(page);
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    await taskControlsAlign(page);
+  }
+});
 
 test("Overview still scrolls, and returning to Today restores a single-screen layout", async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 540 }); await open(page);

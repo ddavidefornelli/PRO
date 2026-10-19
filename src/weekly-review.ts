@@ -2,13 +2,14 @@ import { PlanningClient, type ReviewStop, type WeeklyOverview, type WeeklyReview
 
 import { actionButton, element as node } from "./dom";
 import { errorMessage } from "./errors";
-import { completedTaskTimings, focusDuration } from "../shared/task-timing";
+import { averageTaskTiming, focusDuration } from "../shared/task-timing";
 
 const reviewDate = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 /** Independent loading/error state: a model request never locks planning or the focus timer. */
 export class WeeklyReviewPanel {
   readonly element = node("section", undefined, "weekly-overview");
+  readonly settingsElement = node("section", undefined, "review-preferences");
   private data: WeeklyOverview | null = null;
   private loading = false;
   private saving = false;
@@ -21,6 +22,11 @@ export class WeeklyReviewPanel {
   constructor(private readonly client: PlanningClient) {
     this.element.setAttribute("aria-labelledby", "weekly-review-title");
     this.render();
+  }
+
+  show(): HTMLElement {
+    this.render();
+    return this.element;
   }
 
   async refresh(): Promise<void> {
@@ -58,19 +64,26 @@ export class WeeklyReviewPanel {
   }
 
   private render(): void {
-    const settingsOpen = this.element.querySelector<HTMLDetailsElement>(".weekly-settings")?.open;
+    const settingsOpen = this.settingsElement.querySelector<HTMLDetailsElement>(".weekly-settings")?.open;
+    const settingsInProfile = this.settingsElement.isConnected && !this.element.contains(this.settingsElement);
+    const showError = (target: HTMLElement): void => {
+      const error = node("p", this.error, "error");
+      error.setAttribute("role", "alert");
+      target.append(error, this.button("Retry loading", () => this.refresh()));
+    };
     this.element.replaceChildren();
     this.element.setAttribute("aria-busy", String(this.saving));
     const heading = node("h2", "Weekly review");
     heading.id = "weekly-review-title";
-    this.element.append(heading, node("p", "Your week at a glance. Spot recurring interruptions, compare task time, and choose what to change next.", "muted"));
-    if (this.error) {
-      const error = node("p", this.error, "error");
-      error.setAttribute("role", "alert");
-      this.element.append(error, this.button("Retry loading", () => this.refresh()));
-    }
+    this.element.append(heading);
+    if (this.error && !settingsInProfile) showError(this.element);
     const data = this.data;
     if (!data) {
+      if (settingsInProfile) {
+        this.settingsElement.replaceChildren();
+        if (this.error) showError(this.settingsElement);
+        else this.settingsElement.append(node("p", "Loading AI settings…", "muted"));
+      }
       if (!this.error) this.element.append(node("p", "Loading weekly review…", "muted"));
       return;
     }
@@ -83,8 +96,11 @@ export class WeeklyReviewPanel {
     const toggle = this.button(data.settings.enabled ? "Disable weekly AI" : "Enable weekly AI reviews", () => this.setEnabled(!data.settings.enabled));
     toggle.disabled = this.saving;
     settings.append(toggle);
-    settings.append(node("p", "Reviews cover the previous Monday–Sunday and refresh on Monday while PRO is open, or at the next launch. If several weeks were missed, only the latest complete week is reviewed. Disabling stops future requests; saved reviews remain in your account. A request already sent cannot be recalled.", "muted"));
-    this.element.append(settings);
+    settings.append(node("p", "Reviews appear Sunday at 4:00 p.m. in your local timezone while PRO is open, or at the next launch. They cover Monday through the time of generation; later Sunday activity is not included. If several weeks were missed, only the latest due week is reviewed. Disabling stops future requests; saved reviews remain in your account. A request already sent cannot be recalled.", "muted"));
+    this.settingsElement.replaceChildren(settings);
+    if (this.error && settingsInProfile) showError(this.settingsElement);
+    // Consent stays visible before opt-in; ongoing preferences live in Profile.
+    if (!data.settings.enabled && !this.settingsElement.isConnected) this.element.append(this.settingsElement);
 
     const messages: Record<WeeklyOverview["status"], string> = {
       disabled: "Weekly AI is off. Enable it above to receive a weekly reflection.",
@@ -97,13 +113,13 @@ export class WeeklyReviewPanel {
     };
     const status = node("p", messages[data.status], data.status === "failed" ? "error" : "muted");
     status.setAttribute("role", "status");
-    if (data.status === "failed" || data.status === "pending" || data.status === "running" || data.status === "unavailable" || data.status === "no_data") {
+    if (data.status === "failed" || data.status === "pending" || data.status === "running" || data.status === "unavailable") {
       this.element.append(status);
     } else {
       settings.append(status);
     }
     if (data.settings.enabled) {
-      settings.append(node("p", `Next scheduled update: ${this.date(data.week.nextUpdate)}. ${data.developmentUnlimited ? "Development mode: no request cooldown or usage cap." : "Failed requests retry at most hourly; successful reviews are not regenerated."}`, "muted"));
+      settings.append(node("p", `Next scheduled update: ${this.date(data.week.nextUpdate)} at 4:00 p.m. local time. ${data.developmentUnlimited ? "Development mode: no request cooldown or usage cap." : "Failed requests retry at most hourly; successful reviews are not regenerated."}`, "muted"));
     }
     if (data.status === "failed") {
       this.element.append(this.button("Retry weekly review", () => this.retry()));
@@ -119,14 +135,14 @@ export class WeeklyReviewPanel {
     }
     if (this.preview) {
       const preview = node("section", undefined, "weekly-preview");
-      preview.append(node("h3", "This week so far · On-demand preview"), this.report(this.preview));
+      preview.append(this.report(this.preview));
       this.element.append(preview);
     }
     data.reviews.forEach((review, index) => {
       if (index === 0) this.element.append(this.report(review));
       else {
         const history = node("details", undefined, "weekly-history");
-        history.append(node("summary", this.range(review.weekStart, review.weekEnd)), this.report(review));
+        history.append(node("summary", `Previous review ${index}`), this.report(review));
         this.element.append(history);
       }
     });
@@ -134,7 +150,6 @@ export class WeeklyReviewPanel {
 
   private report(review: WeeklyReview): HTMLElement {
     const article = node("article", undefined, "weekly-report");
-    article.append(node("h3", this.range(review.weekStart, review.weekEnd)));
     const completed = review.activity.tasks.filter((task) => task.completedOn !== null && task.completedOn >= review.weekStart && task.completedOn <= review.weekEnd).length;
     const stats = node("dl", undefined, "review-stats");
     for (const [label, value] of [["Tasks completed", completed], ["Stops logged", review.activity.totalStops], ["Stop patterns", review.analysis.mainReasons.length]] as const) {
@@ -142,41 +157,46 @@ export class WeeklyReviewPanel {
       stat.append(node("dt", label), node("dd", String(value)));
       stats.append(stat);
     }
-    article.append(stats);
-    if (review.activity.omittedStops > 0) {
-      article.append(node("p", `This review uses the most recent ${review.activity.stops.length} stop reasons; ${review.activity.omittedStops} earlier stops were omitted to limit the AI payload.`, "muted"));
-    }
-    article.append(node("p", review.analysis.summary, "weekly-summary"));
     article.append(node("h4", "Reduce distractions · Try next week"));
     article.append(node("p", "Suggested experiments, not rules. Keep necessary breaks; focus on interruptions you can control.", "muted"));
     const improvements = node("ol", undefined, "weekly-improvements");
     for (const improvement of review.analysis.improvements) improvements.append(node("li", improvement));
     article.append(improvements);
     article.append(node("h4", "Estimated vs actual task time"));
-    article.append(node("p", "Whole-task recorded focus time for tasks completed this week, excluding paused breaks. Tasks may span weeks; these are not weekly work-time totals.", "muted"));
-    const timings = completedTaskTimings(review.activity.tasks, review.weekStart, review.weekEnd);
-    const names = new Map(review.activity.tasks.map((task) => [task.id, task.outcome]));
-    const timingList = node("ul", undefined, "weekly-task-timing");
-    const timeScale = Math.max(1, ...timings.flatMap((timing) => [timing.estimatedSeconds, timing.hasRecordedTime ? timing.actualSeconds : 0]));
-    if (timings.length) article.append(node("p", "Blue = estimate · Green = recorded focus time · Shared scale across tasks", "muted review-legend"));
-    for (const timing of timings) {
-      const difference = timing.differenceSeconds === 0 ? "on estimate"
+    const timing = averageTaskTiming(review.activity.tasks, review.weekStart, review.weekEnd);
+    if (timing) {
+      const comparison = node("div", undefined, `weekly-task-timing review-timing-comparison is-${timing.severity}`);
+      const difference = timing.differenceSeconds === 0 ? "On estimate"
         : `${focusDuration(Math.abs(timing.differenceSeconds))} ${timing.differenceSeconds > 0 ? "over" : "under"} estimate`;
-      const item = node("li");
-      item.append(node("strong", names.get(timing.taskId) ?? "Task"));
-      item.append(node("p", `${focusDuration(timing.estimatedSeconds)} estimated · ${timing.hasRecordedTime ? `${focusDuration(timing.actualSeconds)} actual focus time · ${difference}` : "No focus time recorded; comparison unavailable"}`, "muted"));
-      item.append(this.bar(timing.estimatedSeconds, timeScale, "review-bar-estimate"));
-      if (timing.hasRecordedTime) item.append(this.bar(timing.actualSeconds, timeScale, "review-bar-actual"));
-      timingList.append(item);
+      const header = node("div", undefined, "review-timing-header");
+      header.append(node("span", `Average per task · ${timing.count} completed ${timing.count === 1 ? "task" : "tasks"}`, "muted"));
+      header.append(node("span", `${timing.severity === "green" ? "Within margin" : "Outside margin"} · ${difference}`, "review-timing-delta"));
+      comparison.append(header);
+      const timeScale = Math.max(timing.estimatedSeconds, timing.actualSeconds, 1);
+      for (const [label, seconds, className] of [
+        ["Average estimate", timing.estimatedSeconds, "review-bar-estimate"],
+        ["Average actual", timing.actualSeconds, "review-bar-actual"],
+      ] as const) {
+        const row = node("div", undefined, "review-timing-row");
+        const caption = node("div", undefined, "review-timing-caption");
+        caption.append(node("span", label, "review-timing-label"), node("span", focusDuration(seconds), "review-timing-value"));
+        row.append(caption, this.bar(seconds, timeScale, className));
+        comparison.append(row);
+      }
+      comparison.append(node("p", "Green: within 10% (at least 1 min tolerance). Yellow: up to 25% off · Orange: up to 50% · Red: over 50%, in either direction.", "muted review-legend"));
+      comparison.append(node("p", `Whole-task focus time, excluding breaks—not weekly totals.${timing.omittedCount ? ` ${timing.omittedCount} completed ${timing.omittedCount === 1 ? "task excluded" : "tasks excluded"} without recorded time.` : ""}`, "muted review-legend"));
+      article.append(comparison);
+    } else article.append(node("p", "Not enough recorded time for completed tasks to compare averages yet.", "muted"));
+    article.append(node("h4", "Comprehensive review"));
+    article.append(stats);
+    if (review.activity.omittedStops > 0) {
+      article.append(node("p", `${review.activity.stops.length} stop entries analyzed · ${review.activity.omittedStops} earlier stops were omitted.`, "muted"));
     }
-    if (timings.length) article.append(timingList);
-    else article.append(node("p", "No completed tasks in this review week to compare.", "muted"));
-    article.append(node("h4", "What interrupted your focus?"));
-    article.append(node("p", "Patterns suggested by AI, ranked by supporting entries. A stop is not always a distraction. Counts use included stop reasons only; patterns may overlap.", "muted"));
+    if (review.analysis.mainReasons.length) article.append(node("p", "Stop patterns · AI-grouped, may overlap", "muted"));
     const taskNames = new Map(review.activity.tasks.map((task) => [task.id, task.outcome]));
     const stops = new Map(review.activity.stops.map((stop) => [stop.id, stop]));
     if (!review.analysis.mainReasons.length) {
-      article.append(node("p", "No stop reasons were logged for this week, so there are no reasons to interpret.", "muted"));
+      article.append(node("p", "No stop patterns to analyze yet.", "muted"));
     }
     const rankedReasons = review.analysis.mainReasons.map((reason) => ({
       ...reason, evidenceStopIds: [...new Set(reason.evidenceStopIds)].filter((id) => stops.has(id)),
@@ -198,21 +218,6 @@ export class WeeklyReviewPanel {
       group.append(evidence);
       article.append(group);
     }
-    const sources = node("details", undefined, "review-evidence review-sources");
-    sources.append(node("summary", "Activity used for this review"));
-    sources.append(node("p", "Tasks are context only. Status and recorded time are snapshots at review time, not a historical reconstruction or a weekly time total.", "muted"));
-    const taskList = node("ul");
-    for (const task of review.activity.tasks) {
-      taskList.append(node("li", `${task.outcome} · planned ${this.date(task.plannedFor)} · ${task.status}${task.completedOn ? ` on ${this.date(task.completedOn)}` : ""} · ${task.estimatedMinutes} min estimated · ${focusDuration(task.actualSeconds)} total recorded focus time`));
-    }
-    sources.append(taskList);
-    if (review.activity.stops.length) {
-      sources.append(node("h4", "Logged stop reasons"));
-      const stopList = node("ul");
-      for (const stop of review.activity.stops) stopList.append(this.stopEntry(stop, taskNames));
-      sources.append(stopList);
-    }
-    article.append(sources, node("p", `AI-generated · ${review.model} · ${new Date(review.generatedAt * 1000).toLocaleString()}. Interpretations may be wrong; nothing in your plan is changed automatically.`, "muted weekly-disclaimer"));
     return article;
   }
 
@@ -228,7 +233,7 @@ export class WeeklyReviewPanel {
 
   private stopEntry(stop: ReviewStop, taskNames: Map<string, string>): HTMLLIElement {
     const item = node("li");
-    item.append(node("span", `${this.date(stop.stoppedOn)} · ${taskNames.get(stop.taskId) ?? "Task"}`, "muted"), node("p", stop.reason));
+    item.append(node("span", taskNames.get(stop.taskId) ?? "Task", "muted"), node("p", stop.reason));
     return item;
   }
 
@@ -241,7 +246,7 @@ export class WeeklyReviewPanel {
     try {
       this.data = await this.client.setWeeklyAiEnabled(enabled);
       if (this.data.settings.enabled) {
-        const settings = this.element.querySelector<HTMLDetailsElement>(".weekly-settings");
+        const settings = this.settingsElement.querySelector<HTMLDetailsElement>(".weekly-settings");
         if (settings) settings.open = false;
       }
     } catch {
@@ -266,7 +271,7 @@ export class WeeklyReviewPanel {
       if (result.noData) this.previewMessage = "No activity recorded this week yet. No AI request was made.";
       else if (result.review) {
         this.preview = result.review;
-        this.previewMessage = "Your on-demand review is ready.";
+        this.previewMessage = "";
       } else throw new Error("The AI review could not be loaded. Please try later.");
     } catch (error) {
       this.error = errorMessage(error, "Could not create a review. Your planner and saved reviews are unchanged.");

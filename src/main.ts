@@ -88,10 +88,12 @@ class PlanningApplication {
     updateSyncStatus();
     new ResizeObserver(() => this.updateNavigationIndicator()).observe(this.navigation);
     await this.refresh(true);
-    void this.client.generateIfDue().catch(() => { /* AI availability never blocks planning. */ });
-    window.setInterval(() => {
-      void this.client.generateIfDue().catch(() => { /* Server quotas enforce retry backoff. */ });
-    }, 60_000);
+    const checkReview = async () => {
+      await this.client.generateIfDue().catch(() => { /* Server quotas enforce retry backoff. */ });
+      if (this.view === "habits" || this.view === "profile") await this.weeklyReview.refresh();
+    };
+    void checkReview();
+    window.setInterval(() => { void checkReview(); }, 60_000);
     window.setInterval(() => this.tick(), 1000);
     // Refresh after sleep/date rollover without replacing an in-progress form.
     window.setInterval(() => {
@@ -148,13 +150,10 @@ class PlanningApplication {
     const views: [View, string][] = [
       ["today", "Today"],
       ...(!this.todayComplete ? [["focus", "Focus"] as [View, string]] : []),
+      ["tomorrow", "Tomorrow"],
       ["habits", "Overview"],
     ];
     if (this.todayComplete && this.view === "focus") this.view = "today";
-    if (this.data?.canPlanTomorrow)
-      views.splice(views.findIndex(([view]) => view === "habits"), 0, ["tomorrow", "Tomorrow"]);
-    if (this.view === "tomorrow" && !this.data?.canPlanTomorrow)
-      this.view = "today";
     const focusLocked = this.data?.activeTask != null && this.data.activeTask.startedAt !== null;
     if (focusLocked) this.view = "focus";
     this.profileButton.disabled = this.busy || focusLocked;
@@ -601,6 +600,7 @@ class PlanningApplication {
   }
 
   private tick(): void {
+    this.weeklyReview.tick();
     const timer = document.getElementById("focus-timer");
     const task: Task | null = this.data?.activeTask ?? null;
     if (timer && task) {

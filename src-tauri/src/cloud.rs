@@ -32,7 +32,7 @@ fn network() -> CommandError {
     )
 }
 fn credentials() -> CommandError {
-    CommandError::new("credentials", "Could not access the OS credential store. Unlock it and try again; PRO never stores tokens in plaintext.")
+    CommandError::new("credentials", "Could not access the OS credential store. Unlock it and try again; prune never stores tokens in plaintext.")
 }
 fn unauthorized() -> CommandError {
     CommandError::new(
@@ -57,7 +57,7 @@ fn auth_server_error(
         ) {
         (
             "email_delivery",
-            "Supabase could not send the sign-in email. Check the project's email delivery settings (SMTP/email hook) and Auth logs. Reloading PRO will not fix email delivery.",
+            "Supabase could not send the sign-in email. Check the project's email delivery settings (SMTP/email hook) and Auth logs. Reloading prune will not fix email delivery.",
         )
     } else {
         (
@@ -188,7 +188,7 @@ impl Cloud {
             .ok()
             .or_else(|| option_env!("PRO_SUPABASE_ANON_KEY").map(str::to_owned));
         let (Some(url), Some(key)) = (url, key) else {
-            return Err(CommandError::new("configuration", "Configure PRO_SUPABASE_URL and PRO_SUPABASE_ANON_KEY before building or launching PRO. Use only the public project key."));
+            return Err(CommandError::new("configuration", "Configure PRO_SUPABASE_URL and PRO_SUPABASE_ANON_KEY before building or launching prune. Use only the public project key."));
         };
         validate_url(&url)?;
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]

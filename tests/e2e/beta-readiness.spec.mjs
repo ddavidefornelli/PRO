@@ -191,7 +191,7 @@ test("support is usable even when authentication is misconfigured", async ({ pag
   await expect(support).toHaveAttribute("href", "mailto:fornelli.dv@gmail.com");
   await support.click();
   await expect.poll(() => backend.calls.filter((call) => call.command === "open_support_email").length).toBe(1);
-  await expect(page.getByRole("heading", { name: "Sign in to PRO" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to prune" })).toBeVisible();
 });
 
 test("failed mail handler shows a copyable contact address without navigating away", async ({ page, backend }) => {

@@ -20,7 +20,7 @@ before(async () => {
     $$;
     grant usage on schema auth to authenticated, anon;
   `);
-  for (const file of ["20261017000100_weekly_reviews.sql", "20261017000200_cloud_planner.sql", "20261017000300_local_queue.sql", "20261017000400_review_lease_validation.sql"]) {
+  for (const file of ["20261017000100_weekly_reviews.sql", "20261017000200_cloud_planner.sql", "20261017000300_local_queue.sql", "20261017000400_review_lease_validation.sql", "20261019000100_tomorrow_available.sql"]) {
     await db.exec(await readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   ({ today, tomorrow, week } = (await db.query("select (now() at time zone 'UTC')::date::text today, ((now() at time zone 'UTC')::date + 1)::text tomorrow, (date_trunc('week', now() at time zone 'UTC')::date - 7)::text week")).rows[0]);
@@ -63,7 +63,7 @@ test("cloud planner: empty accounts, per-user isolation, no cross-account mutati
   const initial = await call("dashboard");
   assert.deepEqual(initial.todayTasks, []);
   assert.equal(initial.activeTask, null);
-  assert.equal(initial.canPlanTomorrow, false);
+  assert.equal(initial.canPlanTomorrow, true);
   assert.equal(initial.today, today);
   const task = await create();
   assert.equal(task.isPriority, true);
@@ -87,8 +87,8 @@ test("cloud planner: authentication required; anonymous sessions and bad timezon
   await assert.rejects(() => call("dashboard", {}, alice, "Not/AZone"), /timezone/);
 });
 
-test("cloud planner: limits are enforced in SQL; tomorrow unlocks after a complete nonempty day", async () => {
-  await assert.rejects(() => call("create_task", { outcome: "Tomorrow", day: tomorrow, estimatedMinutes: 30 }), /Finish today/);
+test("cloud planner: daily limits remain enforced with tomorrow available immediately", async () => {
+  assert.equal((await call("create_task", { outcome: "Plan ahead", day: tomorrow, estimatedMinutes: 30 })).plannedFor, tomorrow);
   const tasks = [];
   for (let i = 0; i < 3; i++) tasks.push(await create(`Task ${i}`));
   await assert.rejects(() => create("Fourth"), /no more than three/);

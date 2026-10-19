@@ -1,4 +1,4 @@
-# PRO
+# prune
 
 An authenticated daily planning desktop app built with **Rust, Tauri 2, and Supabase**, following [SPEC.md](SPEC.md). macOS and Windows are the supported desktop targets.
 
@@ -9,7 +9,7 @@ An authenticated daily planning desktop app built with **Rust, Tauri 2, and Supa
 Install Node.js 22.12+ (or current LTS), a stable Rust toolchain, and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 1. Set up a fresh Supabase project using [supabase/README.md](supabase/README.md). Apply **all migrations in order** (currently eight), enable email Auth, and configure the email template to show `{{ .Token }}`. Anonymous sign-in is not used.
-2. Set the public desktop configuration in the shell that launches/builds PRO:
+2. Set the public desktop configuration in the shell that launches/builds prune:
 
    ```sh
    # macOS / Unix shell
@@ -37,7 +37,7 @@ The URL and public key may be embedded at **Rust compile time** using the same e
 
 - Email one-time-code sign-in; no passwords or browser/deep-link callback required.
 - The refresh token is stored in **macOS Keychain / Windows Credential Manager** using native Security Framework operations on macOS and `keyring` on Windows. The access token stays in Rust memory. Tokens never go into webview localStorage, frontend responses, logs, or planner tables.
-- A single desktop instance runs at a time. Launching PRO again brings the existing window forward instead of opening another credential-store session.
+- A single desktop instance runs at a time. Launching prune again brings the existing window forward instead of opening another credential-store session.
 - The refresh token is read once at startup, then kept in Rust memory. Refresh is serialized, uses the in-memory token, and writes to the OS store only when the token changes. Restarting restores the saved session (network access is required). Credential-store failures have no plaintext fallback.
 - Open the top-right **Profile** icon to see your stats, with the account email aligned to the right of the page heading. The red **Sign out** button is at the bottom of the stats page, not in the planner header. Pause a running focus timer before opening the profile. Unsynced changes still require confirmation.
 - Sign-out removes local credentials even if remote logout is unavailable. Remote logout is best-effort; an already-issued access token may remain valid until expiry.
@@ -46,13 +46,13 @@ The URL and public key may be embedded at **Rust compile time** using the same e
 
 ### macOS Keychain prompts and release signing
 
-Memory-only login cannot survive a quit or reboot. PRO deliberately retains secure OS credential storage rather than putting reusable login tokens in an app-data file. Startup shows an accessible animated ring (static with reduced motion) while restoring the session. Credential initialization is deferred until the webview requests authentication and runs on a blocking worker, including construction of the blocking HTTP client. Native permission dialogs do not block window setup. After 30 seconds, the spinner becomes a waiting/retry screen; a late successful response still opens the planner automatically. Failed initialization is retryable rather than permanently cached.
+Memory-only login cannot survive a quit or reboot. prune deliberately retains secure OS credential storage rather than putting reusable login tokens in an app-data file. Startup shows an accessible animated ring (static with reduced motion) while restoring the session. Credential initialization is deferred until the webview requests authentication and runs on a blocking worker, including construction of the blocking HTTP client. Native permission dialogs do not block window setup. After 30 seconds, the spinner becomes a waiting/retry screen; a late successful response still opens the planner automatically. Failed initialization is retryable rather than permanently cached.
 
 On macOS, direct SecItem updates/deletion avoid the legacy backend's extra secret reads before writes and sign-out. Existing service/account identifiers are preserved, so saved logins remain compatible. The token is still read only once per process and rotated tokens are still saved securely. This reduces unnecessary Keychain access; it does not bypass Keychain permissions.
 
 Development rebuilds and unsigned/ad-hoc builds may trigger Keychain permission prompts as executable identity changes. Use `npm run desktop:mac:check` to check your installed **Developer ID Application** certificate and public configuration, then `npm run desktop:mac:release` to build a consistently signed `.app`. The release command enables bundling only for that build, refuses unsigned fallback, and verifies the app's team and identifier. Set `PRO_NOTARY_PROFILE` to also notarize and staple it before distribution. See **[macOS signing setup](docs/macos-signing.md)** for the required Apple certificate/private key, notarization setup, installation, and Keychain transition steps. These credentials are not included in the repository.
 
-Quit other PRO instances and launch the signed app from `/Applications`; `npm run desktop` remains a development workflow. The first signed launch may still need approval for the existing Keychain item. Signing does not bypass existing permissions, and a locked Keychain can still require interaction.
+Quit other prune instances and launch the signed app from `/Applications`; `npm run desktop` remains a development workflow. The first signed launch may still need approval for the existing Keychain item. Signing does not bypass existing permissions, and a locked Keychain can still require interaction.
 
 Before release, manually test on macOS with the actual signed app:
 
@@ -70,7 +70,7 @@ Old `pro.sqlite3` files are **not read, migrated, or deleted**. Their contents d
 
 ### File paths, not uploads
 
-Attachments store a filename and absolute local path in Supabase. File contents are never uploaded. A path from another Mac/PC may be missing or refer to a different file; reattach it on that device. PRO confirms local-file opening, rejects explicit network/device paths on Windows, and only opens supported document/image types. Scripts, executables, shortcuts, and executable-bit files on macOS are rejected. Documents can still contain malicious content; open only trusted files.
+Attachments store a filename and absolute local path in Supabase. File contents are never uploaded. A path from another Mac/PC may be missing or refer to a different file; reattach it on that device. prune confirms local-file opening, rejects explicit network/device paths on Windows, and only opens supported document/image types. Scripts, executables, shortcuts, and executable-bit files on macOS are rejected. Documents can still contain malicious content; open only trusted files.
 
 Absolute paths and link metadata can themselves contain sensitive information. They are cloud-stored account data, even though they are excluded from AI inputs.
 
@@ -80,7 +80,7 @@ Absolute paths and link metadata can themselves contain sensitive information. T
 - Select the most important task before beginning; finish it before starting other tasks.
 - One active task per account, across devices.
 - Pause/resume with stop reasons; edit titles and unstarted estimates.
-- Tomorrow unlocks after today's nonempty plan is complete.
+- Tomorrow is available from the start; plan ahead without completing today's tasks first.
 - Yearly completion calendar, grouped by actual completion date.
 - Profile stats show all-time completions, active days, current/best streaks, today/week/month completions, and tracked focus time for today's tasks. Weeks run Monday–Sunday. A current streak can end yesterday while today is still in progress. Focus time is explicitly scoped to today's planned tasks, not an all-time total; local pending completions appear immediately.
 - Periodic reload and focus/wake refresh show server state; this is polling, not realtime subscriptions.
@@ -90,7 +90,7 @@ The database takes a per-account row lock for every planner transaction. Unique 
 
 ### Time and network semantics
 
-The device supplies its IANA timezone; Postgres validates it. Normal online operations use server time; queued operations use the bounded captured action time described below. Sleep and time with PRO closed continue to count; paused time is excluded. A previous day's active task remains accessible until completed. Completion and stop dates retain the action's timezone and do not change after timezone travel.
+The device supplies its IANA timezone; Postgres validates it. Normal online operations use server time; queued operations use the bounded captured action time described below. Sleep and time with prune closed continue to count; paused time is excluded. A previous day's active task remains accessible until completed. Completion and stop dates retain the action's timezone and do not change after timezone travel.
 
 ### Local queue and background sync
 
@@ -110,8 +110,8 @@ The device supplies its IANA timezone; Postgres validates it. Normal online oper
 
 AI is optional and disabled by default per account and globally. See [backend setup](supabase/README.md) to deploy the function, configure its OpenAI secret, enable the global allowance, and schedule cleanup. Desktop users do not need provider credentials.
 
-- Scheduled reviews become due **Sunday at 4:00 p.m. local time** and cover Monday through the generation snapshot; later Sunday activity is not included. PRO checks on launch/once per minute while signed in. Missed weeks collapse to the latest due week. No server scheduler generates reviews while every client is closed.
-- Overview also offers **Review this week so far**, a session-only preview separate from saved scheduled reviews. Production previews allow three attempts per UTC day, at least ten minutes apart. Keep development-only unlimited allowances disabled in production.
+- Scheduled reviews become due **Sunday at 4:00 p.m. local time** and cover Monday through the generation snapshot; later Sunday activity is not included. prune checks on launch/once per minute while signed in. Missed weeks collapse to the latest due week. No server scheduler generates reviews while every client is closed.
+- Overview shows a live countdown to the next Sunday review and a weekly progress indicator. Reviews generate automatically after opt-in; there are no on-demand or generation-retry buttons. Failed requests retry automatically under server-enforced backoff. Keep development-only unlimited allowances disabled in production.
 - Summarizes the week, identifies evidence-linked themes in stop reasons, and suggests 1–3 small improvements. Task value is not scored. AI never edits planner state.
 - The Edge Function authenticates the email account, loads activity and consent from Postgres, reserves a quota slot, calls a fixed OpenAI model, validates output, and saves the review and source snapshot in Supabase.
 - Clients send **only the timezone**, not arbitrary prompts, user IDs, models, or activity. Resource metadata and contents are excluded. Sensitive text directly entered in titles/reasons is still processed.

@@ -39,6 +39,19 @@ test("totals include only completed days in the selected year", () => {
   assert.equal(upcoming.count, 0);
 });
 
+test("rolling calendar starts in the current month and crosses the year boundary", () => {
+  const result = calendarYear(2026, "2026-10-19", [
+    { day: "2026-09-30", count: 3 },
+    { day: "2026-10-19", count: 2 },
+    { day: "2027-01-01", count: 3 },
+  ], 9);
+  assert.equal(result.days[0].day, "2026-10-01");
+  assert.equal(result.days.at(-1).day, "2027-09-30");
+  assert.equal(result.days.length, 365);
+  assert.equal(result.total, 2);
+  assert.equal(calendarYear(2027, "2027-10-19", [], 9).days.length, 366);
+});
+
 test("empty and historical years render without inventing activity", () => {
   const empty = calendarYear(2026, "2026-01-01", []);
   assert.equal(empty.total, 0);

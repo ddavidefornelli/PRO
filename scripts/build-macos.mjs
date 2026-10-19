@@ -37,7 +37,7 @@ export function validatePublicConfig(env) {
 
 function run(command, args, capture = false) {
   const result = spawnSync(command, args, { cwd: project, encoding: "utf8", stdio: capture ? "pipe" : "inherit" });
-  if (result.error || result.status !== 0) throw new Error(`${command} failed. Resolve the error before distributing PRO.`);
+  if (result.error || result.status !== 0) throw new Error(`${command} failed. Resolve the error before distributing prune.`);
   return `${result.stdout ?? ""}${result.stderr ?? ""}`;
 }
 
@@ -55,7 +55,7 @@ export function main() {
     macOS: { signingIdentity: identity.fingerprint, hardenedRuntime: true },
   } });
   run("npm", ["exec", "--", "tauri", "build", "--bundles", "app", "--config", config]);
-  const app = join(project, "src-tauri/target/release/bundle/macos/PRO.app");
+  const app = join(project, "src-tauri/target/release/bundle/macos/prune.app");
   run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
   const details = run("codesign", ["--display", "--verbose=4", app], true);
   if (!details.includes(`TeamIdentifier=${identity.team}\n`) || !details.includes("Identifier=com.pro.desktop\n") || !details.includes("Authority=Developer ID Application:")) {
@@ -64,7 +64,7 @@ export function main() {
   if (process.env.PRO_NOTARY_PROFILE) {
     const temporary = mkdtempSync(join(tmpdir(), "pro-notarize-"));
     try {
-      const archive = join(temporary, "PRO.zip");
+      const archive = join(temporary, "prune.zip");
       run("ditto", ["-c", "-k", "--keepParent", app, archive]);
       run("xcrun", ["notarytool", "submit", archive, "--keychain-profile", process.env.PRO_NOTARY_PROFILE, "--wait"]);
       run("xcrun", ["stapler", "staple", app]);
@@ -75,7 +75,7 @@ export function main() {
   } else {
     console.log(`Signed app: ${app}\nNot notarized. For distribution, set PRO_NOTARY_PROFILE and rebuild (see docs/macos-signing.md).`);
   }
-  console.log("Quit other PRO instances, then install and launch this PRO.app from /Applications. npm run desktop remains an unsigned development workflow.");
+  console.log("Quit other prune instances, then install and launch this prune.app from /Applications. npm run desktop remains an unsigned development workflow.");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

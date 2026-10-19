@@ -107,7 +107,7 @@ test("stale weekly read cannot overwrite a newer consent change", async ({ page 
     const client = {
       weeklyOverview: () => ++reads === 1 ? Promise.resolve(data) : new Promise((resolve) => { release = resolve; }),
       setWeeklyAiEnabled: async () => ({ ...data, settings: { enabled: true }, status: "no_data" }),
-      retryWeeklyReview: async () => { throw { message: "Fixture unavailable" }; },
+      generateIfDue: async () => { throw { message: "Fixture unavailable" }; },
     };
     const panel = new WeeklyReviewPanel(client); document.body.append(panel.element);
     await panel.refresh(); const staleRead = panel.refresh();

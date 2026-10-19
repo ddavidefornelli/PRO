@@ -27,7 +27,7 @@ impl DesktopState {
             let mut saved = state.lock().map_err(|_| {
                 CommandError::new(
                     "internal",
-                    "Could not initialize your session. Restart PRO.",
+                    "Could not initialize your session. Restart prune.",
                 )
             })?;
             if let Some(cloud) = saved.as_ref() {
@@ -257,7 +257,7 @@ pub fn run() {
             generate_weekly_review
         ])
         .run(tauri::generate_context!())
-        .expect("Unable to start PRO");
+        .expect("Unable to start prune");
 }
 
 #[cfg(test)]

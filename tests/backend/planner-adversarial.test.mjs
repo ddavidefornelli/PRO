@@ -109,13 +109,13 @@ test("SQL timer and reason validation are one transaction, including revision/re
   assert.deepEqual(await state(), before);
 });
 
-test("SQL partial progress never unlocks tomorrow and a paused task still owns the active slot", async () => {
+test("SQL permits planning tomorrow during partial progress but a paused task still owns the active slot", async () => {
   const a = await f.create("Priority"), b = await f.create("Second");
   await f.call("start_task", { id: a.id }); await f.call("stop_timer", { id: a.id });
   await assert.rejects(() => f.call("start_task", { id: b.id }), /no other active task/);
-  assert.equal((await f.call("dashboard")).canPlanTomorrow, false);
+  assert.equal((await f.call("dashboard")).canPlanTomorrow, true);
   await f.call("complete_task", { id: a.id });
-  await assert.rejects(() => f.call("create_task", { ...taskArgs(), day: f.dates.tomorrow }), /Finish today/);
+  assert.equal((await f.call("create_task", { ...taskArgs(), day: f.dates.tomorrow })).plannedFor, f.dates.tomorrow);
   await f.call("start_task", { id: b.id }); await f.call("complete_task", { id: b.id });
   const next = await f.call("create_task", { ...taskArgs(), day: f.dates.tomorrow });
   await assert.rejects(() => f.call("start_task", { id: next.id }), /today/);

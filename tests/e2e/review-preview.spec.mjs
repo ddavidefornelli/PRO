@@ -1,74 +1,108 @@
 import { test, expect, open } from "./fixtures.mjs";
 
-test("on-demand button generates a current-week preview and keeps saved reports separate", async ({ page }) => {
+async function mount(page, status = "up_to_date", enabled = true, available = true) {
   await open(page);
-  await page.evaluate(async () => {
+  await page.evaluate(async ({ status, enabled, available }) => {
     const { WeeklyReviewPanel } = await import("/src/weekly-review.ts");
-    const data = { settings: { enabled: true }, model: "gpt-4.1-mini", available: true,
-      week: { start: "2026-10-12", end: "2026-10-18", nextUpdate: "2026-10-26" }, status: "no_data", error: null, reviews: [] };
-    const client = {
-      weeklyOverview: async () => data,
-      previewReview: () => new Promise((resolve) => { window.releasePreview = () => resolve({ review: {
-        weekStart: "2026-10-19", weekEnd: "2026-10-21", generatedAt: 1792584000, model: "gpt-4.1-mini",
-        activity: { tasks: [{ id: "a", outcome: "Write report", plannedFor: "2026-10-19", completedOn: "2026-10-20", status: "completed", estimatedMinutes: 30, actualSeconds: 2400 }], stops: [], totalStops: 0, omittedStops: 0 },
-        analysis: { summary: "A partial week with one completion.", mainReasons: [], improvements: ["Try a 40-minute estimate."] },
-      } }); }),
-    };
-    const panel = new WeeklyReviewPanel(client);
-    panel.element.id = "preview-fixture";
-    document.body.append(panel.element);
+    window.reviewGenerationCalls = 0;
+    const panel = new WeeklyReviewPanel({
+      weeklyOverview: async () => ({ settings: { enabled }, model: "test", available,
+        week: { start: "2026-10-12", end: "2026-10-18", nextUpdate: "2026-10-25", nextUpdateAt: "2026-10-25T16:00:00Z" },
+        status, error: status === "failed" ? "Service temporarily unavailable. Automatic retries are enabled." : null, reviews: [] }),
+      previewReview: async () => { window.reviewGenerationCalls++; },
+      retryWeeklyReview: async () => { window.reviewGenerationCalls++; },
+    });
+    panel.element.id = "countdown-fixture";
+    const root = document.getElementById("app");
+    root.classList.remove("single-screen");
+    root.replaceChildren(panel.element);
     await panel.refresh();
-  });
-  const panel = page.locator("#preview-fixture");
-  await expect(panel.locator(".weekly-settings")).toHaveCount(0);
-  await expect(panel).not.toContainText("Your week at a glance");
-  await expect(panel).not.toContainText("No tasks or stops were recorded");
-  await expect(panel.getByRole("button")).toHaveCount(1);
-  await panel.getByRole("button", { name: "Review this week so far" }).click();
-  await expect(panel.getByRole("button", { name: "Creating review…" })).toBeDisabled();
-  await page.evaluate(() => window.releasePreview());
-  await expect(panel.locator(".weekly-preview")).toContainText("Try a 40-minute estimate.");
-  await expect(panel.locator(".weekly-preview")).not.toContainText("A partial week with one completion.");
-  await expect(panel.locator(".weekly-preview")).not.toContainText("2026");
-  await expect(panel.locator(".review-timing-delta")).toHaveText("Outside margin · 10m over estimate");
-  await expect(panel.locator(".review-timing-comparison")).toHaveClass(/is-orange/);
-  await expect(panel.locator(".review-timing-label")).toHaveText(["Average estimate", "Average actual"]);
-  await expect(panel.locator(".review-timing-value")).toHaveText(["30m", "40m"]);
-  await expect(panel.locator(".weekly-preview h4")).toHaveText([
-    "Reduce distractions · Try next week",
-    "Estimated vs actual task time",
-    "Comprehensive review",
-  ]);
-  expect(await panel.locator(".weekly-preview").evaluate((element) => {
-    const content = element.textContent;
-    return content.indexOf("10m over estimate") < content.indexOf("Comprehensive review");
-  })).toBe(true);
-  await expect(panel.getByRole("button", { name: "Review this week so far" })).toBeEnabled();
-  await expect(panel).not.toContainText("Your on-demand review is ready");
-  await expect(panel).not.toContainText("On-demand preview");
-  await expect(panel.locator(".review-sources, .weekly-disclaimer")).toHaveCount(0);
+    window.tickReview = (now) => panel.tick(now);
+    panel.tick(Date.parse("2026-10-23T13:55:54Z"));
+  }, { status, enabled, available });
+  return page.locator("#countdown-fixture");
+}
+
+test("automatic review has a live countdown and no manual generation controls", async ({ page }) => {
+  const panel = await mount(page);
+  await expect(panel.getByRole("button")).toHaveCount(0);
+  await expect(panel.locator(".review-countdown-value")).toHaveText(["02", "02", "04", "06"]);
+  await expect(panel.getByRole("timer")).toHaveAttribute("aria-live", "off");
+  await expect(panel.getByRole("heading", { name: "Next review" })).toBeVisible();
+  await expect(panel.locator(".review-countdown-copy, .review-countdown-eyebrow, .review-countdown-footnote")).toHaveCount(0);
+  await page.evaluate(() => window.tickReview(Date.parse("2026-10-23T13:55:55Z")));
+  await expect(panel.locator(".review-countdown-value")).toHaveText(["02", "02", "04", "05"]);
+  await page.evaluate(() => window.tickReview(Date.parse("2026-10-25T16:00:01Z")));
+  await expect(panel.locator(".review-countdown-value")).toHaveText(["00", "00", "00", "00"]);
+  await expect(panel).toContainText("Checking for your review…");
+  expect(await page.evaluate(() => window.reviewGenerationCalls)).toBe(0);
 });
 
-test("preview requires consent and safely displays no-data and quota feedback", async ({ page }) => {
-  await open(page);
-  await page.evaluate(async () => {
-    const { WeeklyReviewPanel } = await import("/src/weekly-review.ts");
-    const data = { settings: { enabled: false }, model: "gpt-4.1-mini", available: true,
-      week: { start: "2026-10-12", end: "2026-10-18", nextUpdate: "2026-10-26" }, status: "disabled", error: null, reviews: [] };
-    let attempts = 0;
-    const panel = new WeeklyReviewPanel({
-      weeklyOverview: async () => structuredClone(data),
-      previewReview: async () => { if (++attempts === 1) return { noData: true }; throw { message: "Preview limit reached. Allow 10 minutes between requests." }; },
-    });
-    window.enablePreviewFixture = async () => { data.settings.enabled = true; data.status = "no_data"; await panel.refresh(); };
-    panel.element.id = "preview-fixture"; document.body.append(panel.element); await panel.refresh();
+for (const status of ["pending", "running", "failed", "unavailable"]) {
+  test(`${status} reviews never offer generation or retry buttons`, async ({ page }) => {
+    const panel = await mount(page, status, true, status !== "unavailable");
+    await expect(panel.getByRole("button")).toHaveCount(0);
+    if (status === "pending" || status === "running") {
+      await expect(panel).toContainText("Preparing your review…");
+      await expect(panel.getByRole("timer")).toHaveCount(0);
+    }
+    await expect(panel.getByRole("status")).toBeVisible();
   });
-  const panel = page.locator("#preview-fixture");
-  await expect(panel.getByRole("button", { name: "Review this week so far" })).toHaveCount(0);
-  await page.evaluate(() => window.enablePreviewFixture());
-  await panel.getByRole("button", { name: "Review this week so far" }).click();
-  await expect(panel).toContainText("No activity recorded this week yet. No AI request was made.");
-  await panel.getByRole("button", { name: "Review this week so far" }).click();
-  await expect(panel.getByRole("alert")).toContainText("Preview limit reached.");
-  await expect(panel.locator(".weekly-preview")).toHaveCount(0);
+}
+
+test("countdown waits for consent", async ({ page }) => {
+  const panel = await mount(page, "disabled", false);
+  await expect(panel.locator(".review-countdown")).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Enable weekly AI reviews" })).toBeVisible();
+  expect(await page.evaluate(() => window.reviewGenerationCalls)).toBe(0);
 });
+
+test("automatic generation respects consent, availability and due status", async ({ page }) => {
+  await open(page);
+  const results = await page.evaluate(async () => {
+    const { PlanningClient } = await import("/src/api.ts");
+    const results = [];
+    for (const [enabled, available, status] of [[false, true, "pending"], [true, false, "pending"], [true, true, "up_to_date"], [true, true, "no_data"], [true, true, "running"], [true, true, "pending"], [true, true, "failed"]]) {
+      const client = new PlanningClient();
+      let calls = 0;
+      client.weeklyOverview = async () => ({ settings: { enabled }, available, status });
+      client.retryWeeklyReview = async () => { calls++; };
+      await client.generateIfDue();
+      results.push(calls);
+    }
+    return results;
+  });
+  expect(results).toEqual([0, 0, 0, 0, 0, 1, 1]);
+});
+
+test("automatic checks cannot overlap and recover after a failed request", async ({ page }) => {
+  await open(page);
+  const calls = await page.evaluate(async () => {
+    const { PlanningClient } = await import("/src/api.ts");
+    const client = new PlanningClient();
+    let calls = 0;
+    let release;
+    client.weeklyOverview = async () => ({ settings: { enabled: true }, available: true, status: "pending" });
+    client.retryWeeklyReview = () => { calls++; return new Promise((_, reject) => { release = () => reject(new Error("Offline")); }); };
+    const first = client.generateIfDue().catch(() => {});
+    await Promise.resolve();
+    await client.generateIfDue();
+    release();
+    await first;
+    client.retryWeeklyReview = async () => { calls++; };
+    await client.generateIfDue();
+    return calls;
+  });
+  expect(calls).toBe(2);
+});
+
+for (const width of [320, 390, 1000]) {
+  test(`countdown fits at ${width}px with reduced motion`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const panel = await mount(page);
+    expect(await panel.locator(".review-countdown").evaluate((card) => card.scrollWidth <= card.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(panel.locator(".review-countdown-label")).toHaveText(["Days", "Hours", "Minutes", "Seconds"]);
+  });
+}

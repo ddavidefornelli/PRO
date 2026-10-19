@@ -12,7 +12,7 @@ test("a busy week shows only two average bars, not a task list", async ({ page }
           estimatedMinutes: 30, actualSeconds: 1860 })),
         stops: [], totalStops: 0, omittedStops: 0,
       },
-      analysis: { summary: "A busy week.", mainReasons: [], improvements: ["Protect focus time."] },
+      analysis: { summary: "A busy week.", mainReasons: [], improvements: ["Protect focus time (stop IDs: 4, 7, 3)."] },
     };
     const panel = new WeeklyReviewPanel({ weeklyOverview: async () => ({
       settings: { enabled: true }, model: "test", available: true,
@@ -23,6 +23,7 @@ test("a busy week shows only two average bars, not a task list", async ({ page }
     document.body.append(panel.element);
     await panel.refresh();
   });
+  await expect(page.locator("#timing-fixture .weekly-improvements")).toHaveText("Protect focus time.");
   const timing = page.locator("#timing-fixture .review-timing-comparison");
   await expect(timing).toHaveClass(/is-green/);
   await expect(timing.locator(".review-bar-track")).toHaveCount(2);

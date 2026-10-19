@@ -1,8 +1,11 @@
 import { PlanningClient, type ReviewStop, type WeeklyOverview, type WeeklyReview } from "./api";
 
 import { actionButton, element as node } from "./dom";
-import { errorMessage } from "./errors";
+import { reviewCountdown } from "./review-countdown";
 import { averageTaskTiming, focusDuration } from "../shared/task-timing";
+
+/** Hide internal citations in saved reports too; structured evidence remains available. */
+const reviewText = (text: string): string => text.replace(/\s*\(stop\s+ids?\s*:\s*\d+(?:\s*,\s*\d+)*\s*\)/gi, "");
 
 const reviewDate = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
@@ -15,8 +18,7 @@ export class WeeklyReviewPanel {
   private saving = false;
   private changeVersion = 0;
   private error = "";
-  private preview: WeeklyReview | null = null;
-  private previewMessage = "";
+
   private pollTimer: number | undefined;
 
   constructor(private readonly client: PlanningClient) {
@@ -90,13 +92,13 @@ export class WeeklyReviewPanel {
     const settings = node("details", undefined, "weekly-settings");
     settings.open = settingsOpen ?? (!data.settings.enabled || !data.available);
     settings.append(node("summary", data.settings.enabled ? "Review settings & privacy" : "AI settings & privacy"));
-    settings.append(node("p", "Weekly AI is optional. Enabling it allows PRO to send task titles, dates, status, estimates, recorded task time, and your written stop reasons to OpenAI for a weekly reflection. Attached resources, their links/paths, and their file contents are excluded; sensitive text written directly in a title or reason is still sent. Task value is not scored.", "muted"));
+    settings.append(node("p", "Weekly AI is optional. Enabling it allows prune to send task titles, dates, status, estimates, recorded task time, and your written stop reasons to OpenAI for a weekly reflection. Attached resources, their links/paths, and their file contents are excluded; sensitive text written directly in a title or reason is still sent. Task value is not scored.", "muted"));
     settings.append(node("p", `Model: ${data.model} · Hosted AI ${data.available ? "enabled" : "temporarily unavailable"}`, "muted"));
     settings.append(node("p", "Planner data, including resource paths, is stored in Supabase for your signed-in account. Enabling AI additionally allows the selected activity to be processed by OpenAI. Saved reviews and their source snapshots remain in your account until removed; provider and backup retention policies also apply.", "muted"));
     const toggle = this.button(data.settings.enabled ? "Disable weekly AI" : "Enable weekly AI reviews", () => this.setEnabled(!data.settings.enabled));
     toggle.disabled = this.saving;
     settings.append(toggle);
-    settings.append(node("p", "Reviews appear Sunday at 4:00 p.m. in your local timezone while PRO is open, or at the next launch. They cover Monday through the time of generation; later Sunday activity is not included. If several weeks were missed, only the latest due week is reviewed. Disabling stops future requests; saved reviews remain in your account. A request already sent cannot be recalled.", "muted"));
+    settings.append(node("p", "Reviews appear Sunday at 4:00 p.m. in your local timezone while prune is open, or at the next launch. They cover Monday through the time of generation; later Sunday activity is not included. If several weeks were missed, only the latest due week is reviewed. Disabling stops future requests; saved reviews remain in your account. A request already sent cannot be recalled.", "muted"));
     this.settingsElement.replaceChildren(settings);
     if (this.error && settingsInProfile) showError(this.settingsElement);
     // Consent stays visible before opt-in; ongoing preferences live in Profile.
@@ -106,8 +108,8 @@ export class WeeklyReviewPanel {
       disabled: "Weekly AI is off. Enable it above to receive a weekly reflection.",
       unavailable: "Hosted weekly AI is temporarily unavailable. Your planner is unaffected.",
       pending: `Your review for ${this.range(data.week.start, data.week.end)} is queued.`,
-      running: `Reviewing ${this.range(data.week.start, data.week.end)}… You can keep using PRO.`,
-      failed: data.error ?? "The weekly review could not be generated. Your previous reviews are unchanged.",
+      running: `Reviewing ${this.range(data.week.start, data.week.end)}… You can keep using prune.`,
+      failed: `${data.error ?? "The weekly review could not be generated."} We’ll retry automatically. Your previous reviews are unchanged.`,
       no_data: `No tasks or stops were recorded for ${this.range(data.week.start, data.week.end)}. No AI request was made.`,
       up_to_date: "Your latest weekly review is ready.",
     };
@@ -121,23 +123,7 @@ export class WeeklyReviewPanel {
     if (data.settings.enabled) {
       settings.append(node("p", `Next scheduled update: ${this.date(data.week.nextUpdate)} at 4:00 p.m. local time. ${data.developmentUnlimited ? "Development mode: no request cooldown or usage cap." : "Failed requests retry at most hourly; successful reviews are not regenerated."}`, "muted"));
     }
-    if (data.status === "failed") {
-      this.element.append(this.button("Retry weekly review", () => this.retry()));
-    }
-    const previewButton = this.button(this.saving ? "Creating review…" : "Review this week so far", () => this.createPreview());
-    previewButton.disabled = this.saving || !data.settings.enabled || !data.available || data.status === "running";
-    if (data.settings.enabled && data.available) this.element.append(previewButton);
-    settings.append(node("p", `Create an on-demand review from Monday through today. ${data.developmentUnlimited ? "Development mode: unlimited previews, with no cooldown." : "Up to 3 attempts per UTC day, at least 10 minutes apart."} It does not replace your scheduled weekly report. Previews are shown here until you reload or sign out; they are not saved in review history.`, "muted"));
-    if (this.previewMessage) {
-      const message = node("p", this.previewMessage, "muted");
-      message.setAttribute("role", "status");
-      this.element.append(message);
-    }
-    if (this.preview) {
-      const preview = node("section", undefined, "weekly-preview");
-      preview.append(this.report(this.preview));
-      this.element.append(preview);
-    }
+    if (data.settings.enabled) this.element.append(this.countdown());
     data.reviews.forEach((review, index) => {
       if (index === 0) this.element.append(this.report(review));
       else {
@@ -157,10 +143,9 @@ export class WeeklyReviewPanel {
       stat.append(node("dt", label), node("dd", String(value)));
       stats.append(stat);
     }
-    article.append(node("h4", "Reduce distractions · Try next week"));
-    article.append(node("p", "Suggested experiments, not rules. Keep necessary breaks; focus on interruptions you can control.", "muted"));
+    article.append(node("h4", "What to improve on this week"));
     const improvements = node("ol", undefined, "weekly-improvements");
-    for (const improvement of review.analysis.improvements) improvements.append(node("li", improvement));
+    for (const improvement of review.analysis.improvements) improvements.append(node("li", reviewText(improvement)));
     article.append(improvements);
     article.append(node("h4", "Estimated vs actual task time"));
     const timing = averageTaskTiming(review.activity.tasks, review.weekStart, review.weekEnd);
@@ -183,8 +168,9 @@ export class WeeklyReviewPanel {
         row.append(caption, this.bar(seconds, timeScale, className));
         comparison.append(row);
       }
-      comparison.append(node("p", "Green: within 10% (at least 1 min tolerance). Yellow: up to 25% off · Orange: up to 50% · Red: over 50%, in either direction.", "muted review-legend"));
-      comparison.append(node("p", `Whole-task focus time, excluding breaks—not weekly totals.${timing.omittedCount ? ` ${timing.omittedCount} completed ${timing.omittedCount === 1 ? "task excluded" : "tasks excluded"} without recorded time.` : ""}`, "muted review-legend"));
+      if (timing.omittedCount) {
+        comparison.append(node("p", `${timing.omittedCount} completed ${timing.omittedCount === 1 ? "task excluded" : "tasks excluded"} without recorded time.`, "muted review-legend"));
+      }
       article.append(comparison);
     } else article.append(node("p", "Not enough recorded time for completed tasks to compare averages yet.", "muted"));
     article.append(node("h4", "Comprehensive review"));
@@ -205,7 +191,7 @@ export class WeeklyReviewPanel {
       const group = node("div", undefined, "weekly-reason");
       const count = reason.evidenceStopIds.length;
       const caption = node("div", undefined, "review-reason-caption");
-      caption.append(node("p", reason.reason), node("span", `${count} ${count === 1 ? "entry" : "entries"}`, "review-count"));
+      caption.append(node("p", reviewText(reason.reason)), node("span", `${count} ${count === 1 ? "entry" : "entries"}`, "review-count"));
       group.append(caption, this.bar(count, Math.max(1, review.activity.stops.length), "review-bar-reason"));
       const evidence = node("details", undefined, "review-evidence");
       evidence.append(node("summary", `View ${reason.evidenceStopIds.length} supporting stop ${reason.evidenceStopIds.length === 1 ? "entry" : "entries"}`));
@@ -256,47 +242,53 @@ export class WeeklyReviewPanel {
       this.render();
       this.schedulePoll();
     }
-    if (enabled && !this.error && this.data?.settings.enabled) void this.retry();
-  }
-
-  private async createPreview(): Promise<void> {
-    if (this.saving || !this.data?.settings.enabled || !this.data.available) return;
-    this.changeVersion++;
-    this.saving = true;
-    this.error = "";
-    this.previewMessage = "";
-    this.render();
-    try {
-      const result = await this.client.previewReview();
-      if (result.noData) this.previewMessage = "No activity recorded this week yet. No AI request was made.";
-      else if (result.review) {
-        this.preview = result.review;
-        this.previewMessage = "";
-      } else throw new Error("The AI review could not be loaded. Please try later.");
-    } catch (error) {
-      this.error = errorMessage(error, "Could not create a review. Your planner and saved reviews are unchanged.");
-    } finally {
-      this.saving = false;
-      this.render();
-      this.schedulePoll();
+    if (enabled && !this.error && this.data?.settings.enabled) {
+      // Opt-in may catch up a due review, but never creates an early preview.
+      await this.client.generateIfDue().catch(() => { /* Automatic retries handle transient failures. */ });
+      await this.refresh();
     }
   }
 
-  private async retry(): Promise<void> {
-    if (this.saving) return;
-    this.changeVersion++;
-    this.saving = true;
-    this.error = "";
-    this.render();
-    try {
-      await this.client.retryWeeklyReview();
-      this.data = await this.client.weeklyOverview();
-    } catch (error) {
-      this.error = errorMessage(error, "Could not generate the weekly review. Please try later.");
-    } finally {
-      this.saving = false;
-      this.render();
-      this.schedulePoll();
+  private countdown(): HTMLElement {
+    const card = node("section", undefined, "review-countdown");
+    const preparing = this.data?.status === "pending" || this.data?.status === "running";
+    card.classList.toggle("is-preparing", preparing);
+    card.append(node("h3", preparing ? "Preparing your review…" : "Next review", "review-countdown-title"));
+    if (!preparing) {
+      const clock = node("div", undefined, "review-countdown-clock");
+      clock.setAttribute("role", "timer");
+      clock.setAttribute("aria-live", "off");
+      for (const label of ["Days", "Hours", "Minutes", "Seconds"]) {
+        const unit = node("div", undefined, "review-countdown-unit");
+        unit.append(node("span", "00", "review-countdown-value"), node("span", label, "review-countdown-label"));
+        clock.append(unit);
+      }
+      const track = node("div", undefined, "review-countdown-track");
+      track.setAttribute("aria-hidden", "true");
+      track.append(node("span"));
+      card.append(clock, track, node("p", "", "review-countdown-date"));
+    }
+    // The card must be attached before tick queries its stable numeric nodes.
+    queueMicrotask(() => this.tick());
+    return card;
+  }
+
+  /** Update only clock text, never replace focused controls or announce every second. */
+  tick(now = Date.now()): void {
+    if (!this.element.isConnected || !this.data?.settings.enabled) return;
+    const countdown = reviewCountdown(this.data.week, now);
+    const clock = this.element.querySelector<HTMLElement>(".review-countdown-clock");
+    if (!countdown || !clock) return;
+    clock.querySelectorAll(".review-countdown-value").forEach((value, index) => {
+      value.textContent = String(countdown.values[index]).padStart(2, "0");
+    });
+    clock.setAttribute("aria-label", `${countdown.values[0]} days, ${countdown.values[1]} hours, ${countdown.values[2]} minutes, ${countdown.values[3]} seconds until your next weekly review`);
+    const fill = this.element.querySelector<HTMLElement>(".review-countdown-track > span");
+    if (fill) fill.style.width = `${countdown.progress * 100}%`;
+    const date = this.element.querySelector(".review-countdown-date");
+    if (date) {
+      date.textContent = countdown.due ? "Checking for your review…" : "";
+      date.toggleAttribute("hidden", !countdown.due);
     }
   }
 

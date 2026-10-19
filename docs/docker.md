@@ -1,6 +1,6 @@
 # Docker development, tests and local backend
 
-PRO is a **native Tauri desktop app**, not a web app with an HTTP application server. Docker makes its frontend tooling, portable tests and local Supabase backend reproducible. It does **not** provide macOS Keychain, Windows Credential Manager, native file dialogs, a desktop window or signed Mac/Windows installers inside Linux containers. The supported desktop platforms remain macOS and Windows.
+prune is a **native Tauri desktop app**, not a web app with an HTTP application server. Docker makes its frontend tooling, portable tests and local Supabase backend reproducible. It does **not** provide macOS Keychain, Windows Credential Manager, native file dialogs, a desktop window or signed Mac/Windows installers inside Linux containers. The supported desktop platforms remain macOS and Windows.
 
 ## Requirements
 
@@ -35,7 +35,7 @@ If file changes are not detected on Docker Desktop/WSL, copy `.env.example` to `
 docker compose --profile preview up --build --wait preview
 ```
 
-Open **http://localhost:8080**; health endpoint: **http://localhost:8080/healthz**. This serves the production Vite output, not the development server. It is still a browser preview, **not a working hosted edition of PRO**.
+Open **http://localhost:8080**; health endpoint: **http://localhost:8080/healthz**. This serves the production Vite output, not the development server. It is still a browser preview, **not a working hosted edition of prune**.
 
 The multi-stage build keeps Node, npm, Rust, test code and build dependencies out of the final Nginx image. Nginx runs as UID 101 on an unprivileged port, with a read-only root filesystem, writable temporary storage only, dropped capabilities and `no-new-privileges`. It includes security headers, CSP, HTML revalidation, long-lived hashed-asset caching and a health check. Missing assets return 404 instead of HTML.
 
@@ -128,7 +128,7 @@ To exercise real AI, put a dedicated development OpenAI key in that **server-onl
 npm run backend:stop
 ```
 
-Stopping preserves local database state. `docker compose down` manages only the PRO frontend/test services; it does **not** stop or remove CLI-managed Supabase containers/volumes.
+Stopping preserves local database state. `docker compose down` manages only the prune frontend/test services; it does **not** stop or remove CLI-managed Supabase containers/volumes.
 
 For new migrations on an existing local database, use `npm exec -- supabase migration up --local`. If you intentionally need a fresh database:
 
@@ -141,7 +141,7 @@ npm run backend:reset
 ## Security, CI and maintenance
 
 - `.dockerignore` excludes host dependencies, generated binaries, `.git`, local environment files, signing keys/certificates, linked Supabase metadata and databases **before** sending build context. Only credential-free `.env.example` files are allowed. Dockerfiles also copy only the required directories.
-- No application secrets are accepted as build arguments or passed through Compose. Do not override this with `COPY . .`, broad repository mounts, `env_file: .env` or a Docker socket mount. Backend CLI operations run on the host; no PRO container gets daemon/host control.
+- No application secrets are accepted as build arguments or passed through Compose. Do not override this with `COPY . .`, broad repository mounts, `env_file: .env` or a Docker socket mount. Backend CLI operations run on the host; no prune container gets daemon/host control.
 - Versioned multi-architecture base images and `npm ci` / Cargo `--locked` constrain dependency drift. Tags are version-pinned, not digest-pinned; rebuild with `docker compose build --pull` for refreshed base layers. Update images deliberately for security fixes.
 - When upgrading Playwright, update the Docker image tag to match `package-lock.json`. A unit test enforces this relationship. Keep the Node version in Docker CI aligned with the Dockerfile.
 - `.github/workflows/docker.yml` builds and runs the suite on native **amd64 and arm64** Linux runners, smoke-tests dev/static servers and preview filesystem restrictions, and separately starts/tests the real CLI-managed backend. Browser failure reports are uploaded. No images are published and no repository secrets are required. The macOS desktop job is retained.

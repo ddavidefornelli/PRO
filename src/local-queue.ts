@@ -1,6 +1,6 @@
 import type { Dashboard, Task } from "./api.ts";
 import { errorMessage } from "./errors.ts";
-import { isDayComplete, trackedSeconds } from "./planner.ts";
+import { trackedSeconds } from "./planner.ts";
 import { DAY_MS, localDay } from "./time.ts";
 
 export const QUEUE_STORAGE_VERSION = 1;
@@ -38,7 +38,7 @@ function alignDate(data: Dashboard, at: number, timezone: string): Dashboard {
   data.tomorrow = new Date(Date.parse(`${today}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
   data.todayTasks = tasks.filter((task) => task.plannedFor === data.today);
   data.tomorrowTasks = tasks.filter((task) => task.plannedFor === data.tomorrow);
-  data.canPlanTomorrow = isDayComplete(data.todayTasks);
+  data.canPlanTomorrow = true;
   return data;
 }
 
@@ -91,7 +91,7 @@ function applyCommand(data: Dashboard, command: QueuedAction, result?: Task): Ta
   data.todayTasks = tasks.filter((item) => item.plannedFor === data.today);
   data.tomorrowTasks = tasks.filter((item) => item.plannedFor === data.tomorrow);
   data.activeTask = tasks.find((item) => item.status === "active") ?? null;
-  data.canPlanTomorrow = isDayComplete(data.todayTasks);
+  data.canPlanTomorrow = true;
   return task;
 }
 

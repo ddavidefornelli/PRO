@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PRO",
+  "productName": "prune",
   "version": "0.1.0",
   "identifier": "com.pro.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "PRO — Daily focus",
+        "title": "prune",
         "theme": "Dark",
         "backgroundColor": "#000000",
         "width": 1000,

@@ -17,7 +17,7 @@ test("startup shows a visual status until authentication completes", async ({ pa
     return invoke(command, args);
   };
   await page.goto("/");
-  const loading = page.getByRole("status", { name: "Loading PRO" });
+  const loading = page.getByRole("status", { name: "Loading prune" });
   await expect(loading).toBeVisible();
   await expect(loading).toHaveText("");
   await expect(page.locator(".support-footer a")).toBeInViewport();
@@ -88,7 +88,7 @@ test("configuration failures surface a recoverable authentication error", async 
 });
 
 test("full day: three tasks, crown priority, timer/pause reason, completion, tomorrow, calendar", async ({ page, backend }) => {
-  await open(page); await expect(nav(page, "Tomorrow")).toHaveCount(0);
+  await open(page); await expect(nav(page, "Tomorrow")).toBeVisible();
   await add(page, "Write proposal"); await add(page, "Review draft"); await add(page, "Send proposal"); await synced(page);
   await expect(page.getByRole("button", { name: "Add task", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Start focus" }).nth(1)).toBeDisabled();
@@ -313,13 +313,17 @@ test("estimate dial has keyboard bounds and commits only changed estimates", asy
   expect((await backend.call("dashboard")).todayTasks[0].estimatedMinutes).toBe(5);
 });
 
-test("calendar has one tab stop, arrow layout navigation, and no focusable future dates", async ({ page }) => {
+test("calendar has one tab stop, arrow layout navigation, and no focusable future dates", async ({ page, backend }) => {
   await open(page); await nav(page, "Overview").click();
+  const today = new Date(`${backend.dates.today}T00:00:00Z`);
+  const year = today.getUTCFullYear(), month = today.getUTCMonth();
+  const monthName = new Intl.DateTimeFormat("en", { month: "long", timeZone: "UTC" }).format(today);
   const cells = page.locator(".activity-grid [role=listitem]");
-  await expect(cells).toHaveCount(new Date().getUTCFullYear() % 4 === 0 ? 366 : 365);
+  await expect(cells).toHaveCount((Date.UTC(year + 1, month, 1) - Date.UTC(year, month, 1)) / 86400000);
+  await expect(page.locator(".activity-month").first()).toHaveText(monthName.slice(0, 3));
   const selected = page.locator(".activity-grid [tabindex='0']"); await expect(selected).toHaveCount(1);
-  await selected.focus(); await page.keyboard.press("Home"); await expect(page.locator(".activity-grid [tabindex='0']")).toHaveAttribute("aria-label", /January 1,/);
-  await page.keyboard.press("ArrowRight"); await expect(page.locator(".activity-grid [tabindex='0']")).toHaveAttribute("aria-label", /January 8,/);
+  await selected.focus(); await page.keyboard.press("Home"); await expect(page.locator(".activity-grid [tabindex='0']")).toHaveAttribute("aria-label", new RegExp(`${monthName} 1,`));
+  await page.keyboard.press("ArrowRight"); await expect(page.locator(".activity-grid [tabindex='0']")).toHaveAttribute("aria-label", new RegExp(`${monthName} ${Math.min(8, today.getUTCDate())},`));
   await expect(page.locator(".activity-grid .is-future[tabindex]")).toHaveCount(0);
 });
 
@@ -338,7 +342,7 @@ test("sign-out warns about pending work, cancel keeps the account, and re-sign-i
   page.once("dialog", (dialog) => dialog.dismiss()); await page.getByRole("button", { name: "Sign out", exact: true }).click();
   expect(backend.signedIn).toBe(true);
   page.once("dialog", (dialog) => dialog.accept()); await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Sign in to PRO" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to prune" })).toBeVisible();
   backend.signedIn = true; backend.offline = false; await page.reload(); await synced(page);
   await expect(page.getByRole("button", { name: "Edit task title: Keep pending through sign-out", exact: true })).toBeVisible();
   expect((await backend.call("dashboard")).todayTasks).toHaveLength(1);
@@ -382,12 +386,17 @@ test("two real browser windows share Web Locks and localStorage without duplicat
   } finally { await second.close(); }
 });
 
-test("fresh account has no tomorrow view, no completions, and AI disabled by default", async ({ page }) => {
+test("fresh account can plan tomorrow immediately, with no completions and AI disabled by default", async ({ page }) => {
   await open(page);
   await expect(page.locator(".error:visible")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Sync now" })).toHaveCount(0);
   await expect(page.getByText("All changes synced", { exact: true })).toHaveCount(0);
   await expect(page.locator(".sync-bar")).toBeHidden();
+  await expect(page.locator(".task-list .task")).toHaveCount(0);
+  await nav(page, "Tomorrow").click();
+  await add(page, "Plan ahead"); await synced(page);
+  await expect(page.locator(".task-list .task")).toContainText("Plan ahead");
+  await nav(page, "Today").click();
   await expect(page.locator(".task-list .task")).toHaveCount(0);
   await nav(page, "Focus").click(); await expect(page.getByText("Choose a task from Today to begin.")).toBeVisible();
   await nav(page, "Overview").click(); await expect(page.getByRole("heading", { name: /0 tasks completed in/ })).toBeVisible();

@@ -57,7 +57,7 @@ CMD ["npm", "run", "test:container"]
 
 # Default image: a static BROWSER PREVIEW, not a replacement for the desktop app.
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine3.24 AS preview
-LABEL org.opencontainers.image.title="PRO browser preview" \
+LABEL org.opencontainers.image.title="prune browser preview" \
       org.opencontainers.image.description="Static frontend only; authentication and native IPC require the Tauri desktop app."
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist/ /usr/share/nginx/html/

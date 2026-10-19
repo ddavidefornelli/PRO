@@ -8,9 +8,9 @@ const dateLabel = new Intl.DateTimeFormat("en", {
   month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
 });
 
-export function calendarYear(year: number, today: string, completions: Completion[]) {
-  const start = new Date(`${year}-01-01T00:00:00Z`);
-  const end = new Date(`${year}-12-31T00:00:00Z`);
+export function calendarYear(year: number, today: string, completions: Completion[], startMonth = 0) {
+  const start = new Date(Date.UTC(year, startMonth, 1));
+  const end = new Date(Date.UTC(year + 1, startMonth, 0));
   const offset = start.getUTCDay();
   const dayCount = Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1;
   const weeks = Math.ceil((offset + dayCount) / 7);
@@ -35,12 +35,15 @@ export class ActivityCalendar {
 
   update(today: string, completions: Completion[]): void {
     const year = Number(today.slice(0, 4));
-    const { weeks, days, total } = calendarYear(year, today, completions);
+    const startMonth = Number(today.slice(5, 7)) - 1;
+    const { weeks, days, total } = calendarYear(year, today, completions, startMonth);
+    const endMonth = (startMonth + 11) % 12;
+    const endYear = startMonth === 0 ? year : year + 1;
     this.element.replaceChildren();
     this.element.setAttribute("aria-label", "Task completion history");
 
     const chart = element("div", undefined, "activity-chart");
-    const heading = element("h2", `${total.toLocaleString()} ${total === 1 ? "task" : "tasks"} completed in ${year}`, "activity-heading");
+    const heading = element("h2", `${total.toLocaleString()} ${total === 1 ? "task" : "tasks"} completed in ${MONTHS[startMonth]} ${year} – ${MONTHS[endMonth]} ${endYear}`, "activity-heading");
     heading.id = "activity-heading";
     const card = element("div", undefined, "activity-card");
     const scroll = element("div", undefined, "activity-scroll");
@@ -49,9 +52,10 @@ export class ActivityCalendar {
     grid.setAttribute("role", "list");
     grid.setAttribute("aria-labelledby", heading.id);
 
-    for (let month = 0; month < 12; month++) {
+    for (let index = 0; index < 12; index++) {
+      const month = (startMonth + index) % 12;
       const first = days.find((day) => day.month === month)!;
-      const next = days.find((day) => day.month === month + 1);
+      const next = index < 11 ? days.find((day) => day.month === (month + 1) % 12) : undefined;
       const label = element("span", MONTHS[month], "activity-month");
       label.style.gridRow = "1";
       label.style.gridColumn = `${first.week + 1} / span ${(next?.week ?? weeks) - first.week}`;

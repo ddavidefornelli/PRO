@@ -157,10 +157,17 @@ export class PlanningClient {
     try { await this.native("sign_out"); }
     catch (error) { this.queue?.resume(); throw error; }
   }
+  private generatingReview = false;
   async generateIfDue(): Promise<void> {
-    const overview = await this.weeklyOverview();
-    if (overview.settings.enabled && overview.available && ["pending", "failed"].includes(overview.status)) {
-      await this.retryWeeklyReview();
+    if (this.generatingReview) return;
+    this.generatingReview = true;
+    try {
+      const overview = await this.weeklyOverview();
+      if (overview.settings.enabled && overview.available && ["pending", "failed"].includes(overview.status)) {
+        await this.retryWeeklyReview();
+      }
+    } finally {
+      this.generatingReview = false;
     }
   }
   async dashboard(): Promise<Dashboard> {

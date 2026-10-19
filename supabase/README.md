@@ -1,4 +1,4 @@
-# PRO — Supabase backend
+# prune — Supabase backend
 
 Supabase owns **authoritative account data**; the desktop also persists an unencrypted local planner snapshot and write queue. Email-code Auth identifies users; Postgres stores tasks, timer state, stop reasons, resource metadata, AI settings and saved reviews. Attachments remain paths, not uploaded file contents. SQLite is no longer used and old desktop files are untouched.
 
@@ -16,9 +16,9 @@ In the hosted **Authentication** settings:
 - Edit the **Magic Link** email template to display `{{ .Token }}`, for example:
 
   ```html
-  <h2>Your PRO sign-in code</h2>
+  <h2>Your prune sign-in code</h2>
   <p>{{ .Token }}</p>
-  <p>Enter this code in PRO. If you did not request it, ignore this email.</p>
+  <p>Enter this code in prune. If you did not request it, ignore this email.</p>
   ```
 
   The app calls `/auth/v1/otp` with `create_user: true`, then `/auth/v1/verify` with `type: "email"`. It does not use a magic-link redirect/deep link. Confirm the initial signup email also presents a usable code in your hosted configuration.
@@ -35,15 +35,15 @@ An Auth response such as:
 {"code":500,"error_code":"unexpected_failure","msg":"Error sending confirmation email"}
 ```
 
-means the request reached Supabase, but its email-delivery step failed. `Error sending magic link email` is the equivalent failure for an existing account. Neither means the desktop is offline. A failed signup email can roll back account creation, so the address may not yet appear under Auth users. Reloading PRO, changing the desktop public key, or reapplying planner migrations does not repair SMTP.
+means the request reached Supabase, but its email-delivery step failed. `Error sending magic link email` is the equivalent failure for an existing account. Neither means the desktop is offline. A failed signup email can roll back account creation, so the address may not yet appear under Auth users. Reloading prune, changing the desktop public key, or reapplying planner migrations does not repair SMTP.
 
-PRO recognizes these fixed messages and displays an `email_delivery` error with the HTTP status and, when available, Supabase's request ID. Unknown Auth errors remain sanitized; raw SMTP responses, tokens and account details are never displayed or logged by PRO.
+prune recognizes these fixed messages and displays an `email_delivery` error with the HTTP status and, when available, Supabase's request ID. Unknown Auth errors remain sanitized; raw SMTP responses, tokens and account details are never displayed or logged by prune.
 
 1. Open the hosted project's **Auth logs** in Supabase Logs Explorer. Find the failed `/otp` request by its request ID and timestamp. The internal error distinguishes SMTP authentication, sender rejection, connection/TLS, quota/account restrictions, and email-hook failures. The generic `unexpected_failure` code alone does **not** distinguish them.
 2. Check **Authentication → Email → SMTP settings** against the provider's current SMTP configuration. Use the SMTP username and SMTP credential, not the account login password or an unrelated REST API key. For Brevo, the usual endpoint is `smtp-relay.brevo.com`, port **587** with STARTTLS; copy the SMTP login and generate an **SMTP key** from Brevo's SMTP settings.
 3. Confirm the exact **sender email** is authorized by the provider, the transactional account is active, and sending limits have not been reached. Check Brevo's transactional logs if it accepted the message. For production, use a domain you control with the provider's required SPF/DKIM setup rather than relying on a Gmail From address.
 4. If a **Send Email hook** is enabled, investigate that hook too; configuring SMTP will not repair a failing hook that replaces delivery.
-5. After fixing delivery, request one new code, respecting the hosted resend interval. Check both the **Confirm signup** and **Magic Link** templates for `{{ .Token }}` so first-time and returning users can enter a numeric code. Hosted OTP length may differ from the local configuration; PRO accepts 6–10 digits.
+5. After fixing delivery, request one new code, respecting the hosted resend interval. Check both the **Confirm signup** and **Magic Link** templates for `{{ .Token }}` so first-time and returning users can enter a numeric code. Hosted OTP length may differ from the local configuration; prune accepts 6–10 digits.
 
 A **429** is a rate limit, not the same failure. Wait and inspect hosted Auth/provider limits instead of repeatedly requesting codes. Do not disable email confirmation, expose privileged keys in the app, or reset the database to work around email delivery. Local fixture tests do not verify real hosted SMTP; run the hosted signup/returning-user smoke tests after configuration changes.
 
@@ -130,7 +130,7 @@ These public values can be compiled into releases. Session access tokens stay in
 
 Scheduled reviews become due **Sunday at 4:00 p.m. in the device's local timezone**.
 Apply `20261018000400_sunday_review_schedule.sql` to enable this schedule.
-PRO checks while open and catches up at the next launch if closed; there is no
+prune checks while open and catches up at the next launch if closed; there is no
 background delivery while the app is closed. Reviews include Monday through the
 generation snapshot, not activity logged later that Sunday. The manual preview
 remains available independently. IANA timezone calculations preserve 4:00 p.m.
@@ -258,7 +258,7 @@ Use `http://127.0.0.1:54321` and the local public key in a **debug** desktop bui
 ### Required hosted smoke tests
 
 - Request and verify an email code for new and existing accounts.
-- Restart PRO; verify native credential restore/rotation and sign-out.
+- Restart prune; verify native credential restore/rotation and sign-out.
 - Sign in as a different account; confirm no prior account data appears.
 - Sign into one account on Mac and Windows. Race task creation, start, pause/resume and completion; verify database invariants.
 - After loading the planner, disconnect the network: actions report durable local saves, pending work survives a webview reload, and pause/completion is immediate locally. Reconnect and verify ordered replay without duplicates. A native-app restart still requires online authentication; other devices do not see local timer changes until sync. Verify cross-device rejection and explicit discard preserve already-synced work.

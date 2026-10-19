@@ -16,7 +16,8 @@ Use only the provided activity. The date range may cover only the week so far: w
 explicitly call it a partial-week review and never imply that the whole week is complete.
 Scheduled reviews are generated Sunday at 16:00 local time: Sunday snapshots may omit later activity.
 Describe only the supplied snapshot; never claim to include the entire Sunday.
-Cite actual stop IDs for every main reason; do not invent evidence.
+Cite actual stop IDs for every main reason only in the structured evidenceStopIds field; do not invent evidence.
+Never include stop IDs or internal citations in summary, reason text, or improvements.
 Group the main reasons by recurring themes, putting the most common supported themes first. Cite up to 30
 representative stop IDs per theme. At most 6 themes. A single event is not a recurring pattern.
 Distinguish self-reported facts from possible explanations. Rest, fatigue, meals, and outside obligations

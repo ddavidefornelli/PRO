@@ -69,7 +69,7 @@ jobs:
           docker compose --profile preview up --no-build --wait --wait-timeout 90 dev preview
           curl --fail --silent http://127.0.0.1:1420/ > /dev/null
           test "$(curl --fail --silent http://127.0.0.1:8080/healthz)" = ok
-          curl --fail --silent http://127.0.0.1:8080/ | grep -q '<title>PRO'
+          curl --fail --silent http://127.0.0.1:8080/ | grep -q '<title>prune'
           curl --fail --silent --head http://127.0.0.1:8080/ | grep -qi 'Content-Security-Policy:'
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/assets/missing.js)" = 404
           test "$(docker compose exec -T preview id -u)" != 0

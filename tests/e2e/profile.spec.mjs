@@ -34,7 +34,7 @@ test("profile shows stats with a red sign-out button at the bottom and no page t
   await expect(profile(page)).not.toHaveAttribute("aria-current", "page");
   await expect(signOut(page)).toHaveCount(0);
   await profile(page).click(); await signOut(page).click();
-  await expect(page.getByRole("heading", { name: "Sign in to PRO" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to prune" })).toBeVisible();
   expect(backend.calls.filter((call) => call.command === "sign_out")).toHaveLength(1);
 });
 
@@ -80,7 +80,7 @@ test("failed sign-out stays recoverable on the profile and resumes the planner q
   expect((await backend.call("dashboard")).todayTasks[0].outcome).toBe("Still able to save");
   backend.signOutError = null;
   await profile(page).click(); await signOut(page).click();
-  await expect(page.getByRole("heading", { name: "Sign in to PRO" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to prune" })).toBeVisible();
 });
 
 test("profile sign-out remains accessible if the planner cannot load", async ({ page, backend }) => {
@@ -89,7 +89,7 @@ test("profile sign-out remains accessible if the planner cannot load", async ({ 
   await expect(profile(page)).toBeVisible(); await profile(page).click();
   await expect(page.getByText("Stats unavailable.", { exact: true })).toBeVisible();
   await signOut(page).click();
-  await expect(page.getByRole("heading", { name: "Sign in to PRO" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to prune" })).toBeVisible();
 });
 
 for (const size of [{ width: 390, height: 500 }, { width: 640, height: 500 }, { width: 1000, height: 760 }]) {

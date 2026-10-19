@@ -1,6 +1,6 @@
 # Consistently signed macOS builds
 
-Use an Apple **Developer ID Application** identity for every installed PRO build. Keep the bundle identifier `com.pro.desktop` and the same Apple Developer team. Do not substitute ad-hoc signing (`-`), Apple Development, or a new self-signed certificate on each build.
+Use an Apple **Developer ID Application** identity for every installed prune build. Keep the bundle identifier `com.pro.desktop` and the same Apple Developer team. Do not substitute ad-hoc signing (`-`), Apple Development, or a new self-signed certificate on each build.
 
 The signing script refuses to build without exactly one matching valid certificate/private key, embeds only public Supabase configuration, enables hardened runtime, and verifies the resulting app's signature, team and identifier. This is separate from `npm run desktop`, which is still a development workflow.
 
@@ -35,10 +35,10 @@ npm run desktop:mac:release
 No unsigned fallback is permitted. The output is:
 
 ```text
-src-tauri/target/release/bundle/macos/PRO.app
+src-tauri/target/release/bundle/macos/prune.app
 ```
 
-Quit **all** running PRO instances first (the single-instance handler otherwise forwards launches to the old development process). Copy `PRO.app` into `/Applications`, replacing the previous copy, then launch **that app**. Do not keep using `npm run desktop` if you want the installed build's signing identity.
+Quit **all** running prune instances first (the single-instance handler otherwise forwards launches to the old development process). Copy `prune.app` into `/Applications`, replacing the previous copy, then launch **that app**. Do not keep using `npm run desktop` if you want the installed build's signing identity.
 
 Use the same signing identity/team for subsequent builds and replace the installed app only after quitting it. Renew an expiring certificate through the same team; verify Keychain behavior across renewal before distributing an update.
 
@@ -61,7 +61,7 @@ The script submits a temporary ZIP to Apple (this uploads the compiled app), wai
 
 ## 4. Verify the Keychain transition
 
-An existing login item created by an unsigned build may still prompt during the first signed launch. When macOS names the expected PRO app, you can choose **Always Allow** to trust it. Do not grant all applications access, disable Keychain locking, or delete the saved login just to suppress a prompt.
+An existing login item created by an unsigned build may still prompt during the first signed launch. When macOS names the expected prune app, you can choose **Always Allow** to trust it. Do not grant all applications access, disable Keychain locking, or delete the saved login just to suppress a prompt.
 
 Test first launch, quit/relaunch, token refresh, reboot, and replacement with a second build signed by the same team. A locked Keychain, previously denied permissions, certificate changes, or existing item access rules can still require interaction. Signing makes the app's identity stable; it does not override macOS access controls or guarantee zero prompts.
 

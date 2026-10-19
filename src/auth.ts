@@ -14,13 +14,13 @@ const DEFAULT_CODE_LENGTH = 8;
 export async function authenticate(root: HTMLElement, client: PlanningClient): Promise<AuthStatus | null> {
   const loading = node("div", undefined, "startup-loading");
   loading.setAttribute("role", "status");
-  loading.setAttribute("aria-label", "Loading PRO");
+  loading.setAttribute("aria-label", "Loading prune");
   const ring = node("span", undefined, "startup-ring");
   ring.setAttribute("aria-hidden", "true");
   loading.append(ring);
   root.replaceChildren(loading, supportFooter());
   if (!isTauri()) {
-    root.replaceChildren(node("p", "Open PRO as a desktop app with npm run desktop. The native runtime protects your session credentials."), supportFooter());
+    root.replaceChildren(node("p", "Open prune as a desktop app with npm run desktop. The native runtime protects your session credentials."), supportFooter());
     return null;
   }
   // Native permission dialogs have no deadline. Stop animating after a bounded
@@ -28,7 +28,7 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
   const startupTimeout = window.setTimeout(() => {
     const stalled = node("section", undefined, "auth-panel");
     const heading = node("h1", "Startup is taking longer than expected");
-    const message = node("p", "If macOS is asking for Keychain access, respond to that dialog. PRO will continue automatically when your session is ready. If no dialog is visible, retry the connection.");
+    const message = node("p", "If macOS is asking for Keychain access, respond to that dialog. prune will continue automatically when your session is ready. If no dialog is visible, retry the connection.");
     message.setAttribute("role", "status");
     const retry = node("button", "Retry connection");
     retry.type = "button";
@@ -181,7 +181,7 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
     email.focus();
   });
   form.append(emailLabel, codeLabel, submit, resend);
-  section.append(node("h1", "Sign in to PRO"), node("p", "Sign-in requires internet. Your planner syncs to Supabase; a local snapshot and pending changes are also stored on this device, unencrypted in app storage. Attached file contents are never uploaded."), form, notice, alert, reconnect);
+  section.append(node("h1", "Sign in to prune"), node("p", "Sign-in requires internet. Your planner syncs to Supabase; a local snapshot and pending changes are also stored on this device, unencrypted in app storage. Attached file contents are never uploaded."), form, notice, alert, reconnect);
   root.replaceChildren(section, supportFooter());
   return null;
 }

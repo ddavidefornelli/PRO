@@ -1,9 +1,12 @@
 import { test as base, expect } from "@playwright/test";
 import { ALICE, database } from "../helpers/database.mjs";
+import { PRIVACY_ACKNOWLEDGEMENT_KEY, PRIVACY_POLICY_VERSION } from "../../src/privacy-state.ts";
 
 /** Real browser, real UI, real queue/storage/Web Locks, real migrated Postgres.
  * Only native IPC, email/session identity, file dialogs and remote availability are fixtures. */
 export const test = base.extend({
+  // Existing workflows represent returning users. Privacy specs exercise the real first launch.
+  privacyAcknowledged: [true, { option: true }],
   db: [async ({}, use) => {
     const db = await database();
     try { await use(db); } finally { await db.db.close(); }
@@ -45,7 +48,7 @@ export const test = base.extend({
     };
     await use(state);
   },
-  page: async ({ page, context, backend }, use) => {
+  page: async ({ page, context, backend, privacyAcknowledged }, use) => {
     const errors = [], external = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await context.route("**/*", (route) => {
@@ -53,10 +56,13 @@ export const test = base.extend({
       external.push(route.request().url()); return route.abort();
     });
     await page.exposeBinding("__fixtureInvoke", (_, command, args) => backend.invoke(command, args));
-    await page.addInitScript(() => {
+    await page.addInitScript(({ acknowledged, key, version }) => {
       window.isTauri = true;
       window.__TAURI_INTERNALS__ = { invoke: (command, args) => window.__fixtureInvoke(command, args) };
-    });
+      if (acknowledged && !localStorage.getItem(key)) {
+        localStorage.setItem(key, JSON.stringify({ version, acknowledgedAt: new Date().toISOString() }));
+      }
+    }, { acknowledged: privacyAcknowledged, key: PRIVACY_ACKNOWLEDGEMENT_KEY, version: PRIVACY_POLICY_VERSION });
     await use(page);
     expect(external, "UI must not issue external network calls").toEqual([]);
     expect(errors, "No uncaught browser exceptions").toEqual([]);

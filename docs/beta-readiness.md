@@ -61,7 +61,7 @@ Use the signed release, not just `npm run desktop`, and a clean test account/dev
 
 - Invite 5–10 users first. Give them a short task: sign in, plan a day, pause/resume/complete, close/reopen and send feedback through the support link.
 - Explain current limits: online sign-in/startup, unencrypted device cache retained after sign-out, local-only file contents, cloud-stored paths, temporary unsaved Focus notes, and no carry/drop or account-deletion UI.
-- Publish a privacy/retention notice and a manual account-deletion request process; test backup restoration and deletion before collecting real personal task data.
+- Complete the marked legal/provider/retention/transfer fields in [PRIVACY.md](../PRIVACY.md), follow [the privacy release checklist](privacy-release-checklist.md), and run `npm run privacy:check`. The app now shows a first-launch notice acknowledgement and persistent offline policy access, but the template is not a compliance certificate. Test the documented manual export/account-deletion workflow and backup restoration/deletion before collecting real personal task data.
 - Collect build/OS version, sanitized error codes and reproduction steps, **not tokens, task titles, stop reasons or local file paths**. Track sign-in failures, lost work, timer/reconnect failures and points of confusion.
 - Fix authentication, data-loss, account-isolation or repeated-crash reports before expanding. Add the reproduced cases to the automated suite. Prefer this feedback cycle to adding new MVP features immediately.
 

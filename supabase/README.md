@@ -232,7 +232,7 @@ select cron.schedule(
 );
 ```
 
-Check job history/alert on failures. Do not schedule duplicates on every deployment. Backups, Auth/IP logs, and OpenAI processing have separate provider retention policies. Active-database deletion does not erase backups. `store: false` is not a promise of zero OpenAI retention. Update the privacy notice before public distribution.
+Check job history/alert on failures. Do not schedule duplicates on every deployment. Backups, Auth/IP logs, and OpenAI processing have separate provider retention policies. Active-database deletion does not erase backups. `store: false` is not a promise of zero OpenAI retention. Complete [the bundled privacy notice](../PRIVACY.md) and [privacy release checklist](../docs/privacy-release-checklist.md) before public distribution, including the actual provider regions, transfer safeguards, log/backup retention and manual rights/deletion workflow. `npm run privacy:check` must pass before distribution; it is not a legal-compliance certification.
 
 ## 6. Verification
 

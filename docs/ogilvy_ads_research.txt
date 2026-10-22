@@ -1,0 +1,281 @@
+OGILVY ON ADS — RICERCA PER PRUNE
+================================
+
+SINTESI
+Prune non è principalmente un'app per prendere appunti: dal README è un
+planner desktop con massimo 3 task al giorno, una task attiva alla volta,
+timer, risorse collegate, statistiche e streak.
+Posizionamento da testare: «Meno pianificazione. Una priorità alla volta.»
+
+Metodo e limiti
+- Fonti consultate online; riferimenti dei paper controllati su Crossref.
+  Dove non disponibile, non ho verificato il testo integrale del paper.
+- Siti e testimonianze dei competitor sono materiale commerciale, non prove
+  indipendenti dell'efficacia dei prodotti o dei loro annunci.
+- Reddit blocca l'accesso automatico: sotto trovi ricerche da aprire a mano,
+  NON un'analisi di thread/commenti che non ho potuto leggere.
+- Non ho verificato CPA, ROAS o conversioni degli ads dei competitor.
+  Quindi «campagna interessante» non significa «campagna vincente».
+
+
+1. STUDIARE IL PRODOTTO: FOCUS, COSTANZA E PIANIFICAZIONE
+------------------------------------------------------
+
+[1] Leroy (2009) — Why is it so hard to do my work? The challenge of
+attention residue when switching between work tasks
+https://doi.org/10.1016/j.obhdp.2009.04.002
+In breve: quando cambi attività, parte dell'attenzione può restare sulla
+precedente, ostacolando la prestazione sulla successiva.
+Per prune: base per spiegare il valore di lavorare su una priorità alla volta.
+Limite: non dimostra che prune elimini le distrazioni esterne o lo switching.
+
+[2] Rubinstein, Meyer & Evans (2001) — Executive control of cognitive
+processes in task switching
+https://doi.org/10.1037/0096-1523.27.4.763
+In breve: gli esperimenti mostrano costi temporali nel passaggio tra compiti;
+le regole e la complessità del compito influenzano questi costi.
+Per prune: «Passa meno tempo a cambiare task» è un angolo da testare.
+Limite: esperimenti di laboratorio, non una misura del tempo risparmiato
+usando questa app. Evitare percentuali di produttività inventate.
+
+[3] Lally et al. (2010) — How are habits formed: Modelling habit formation
+in the real world
+https://doi.org/10.1002/ejsp.674
+In breve: ripetere un comportamento in un contesto stabile è associato a
+maggiore automaticità. I tempi variano molto; saltare una singola occasione
+non comprometteva materialmente il processo osservato.
+Per prune: collegare il planning a un momento fisso, es. dopo colazione.
+Limite: studiava comportamenti di alimentazione, bevande e attività fisica,
+non l'uso di planner. Non promettere «un'abitudine in 21/66 giorni».
+
+[4] Gollwitzer (1999) — Implementation intentions: Strong effects of
+simple plans
+https://doi.org/10.1037/0003-066X.54.7.493
+In breve: i piani che precisano quando, dove e come agire aiutano a tradurre
+le intenzioni in azioni; formato utile: «Se succede X, allora faccio Y».
+Per prune: «Dopo la prima lezione, apro prune e inizio la priorità di oggi».
+Limite: una lista o un timer, da soli, non equivalgono a un piano se-allora.
+
+[5] Mark, Gudith & Klocke (2008) — The cost of interrupted work:
+more speed and stress
+https://doi.org/10.1145/1357054.1357072
+Testo integrale:
+https://ics.uci.edu/~gmark/chi08-mark.pdf
+In breve: nello studio le persone compensavano le interruzioni lavorando
+più velocemente, ma riportavano più stress, frustrazione, pressione temporale
+e sforzo. Non è corretto ridurre il risultato a «interruzioni = sempre più lente».
+Per prune: testare anche calma e chiarezza, non soltanto velocità.
+
+COSA PUOI DIRE / COSA NON PUOI DIRE
+Sì: «Tre priorità. Una task alla volta.» — descrive il prodotto.
+Con prudenza: «Progettato per aiutarti a concentrarti su ciò che conta».
+No, senza test tuoi: «Scientificamente provato che prune aumenta la
+produttività del 40%», «elimina il context switching», «cura l'ADHD».
+Non esiste qui una prova che esattamente 3 task sia il numero ottimale.
+
+
+2. COMPETITOR E MESSAGGI PUBBLICITARI DA STUDIARE
+-----------------------------------------------
+
+COMPETITOR PIÙ DIRETTI
+
+[6] Structured — planner giornaliero visuale
+https://structured.app/
+Messaggio osservato: «your all in one day planner»; task organizzate in una
+timeline, semplicità visiva, riduzione dell'overwhelm.
+Da studiare: demo dell'interfaccia e chiarezza visiva del giorno.
+Differenza da testare: prune limita le priorità invece di riempire la timeline.
+
+[7] Sunsama — daily planning + focus
+https://www.sunsama.com/
+Messaggi osservati: «Start Calm. Stay Focused. End Confident.» e lavoro
+senza burnout; il sito si rivolge esplicitamente ai professionisti.
+Da studiare: vendere la sensazione finale, non un elenco di funzioni.
+Differenza da testare: un rituale più essenziale per studio e progetti personali.
+
+[8] TickTick — task manager con strumenti per il focus
+https://www.ticktick.com/
+Perché compete: combina gestione delle attività e focus in un unico prodotto.
+Da studiare: come presenta il passaggio dalla lista all'esecuzione.
+Differenza da testare: meno configurazione e meno scelte in prune.
+
+[9] Todoist — task manager generalista
+https://www.todoist.com/
+Messaggio osservato: organizzare lavoro e vita, diventare più concentrati e
+organizzati. Compete soprattutto nella scelta iniziale di una to-do app.
+Differenza da testare: prune non è un archivio infinito di cose da fare.
+
+COMPETITOR ADIACENTI / ALTERNATIVE
+
+[10] Forest — focus timer e progresso visuale
+https://www.forestapp.cc/
+Messaggio osservato: «Spend your time well»; il tempo di concentrazione
+fa crescere alberi. Presenta casi d'uso studio, lavoro e digital detox.
+Da studiare: rendere visibile e gratificante il progresso quotidiano.
+Differenza: prune lega il focus a priorità e completamento delle task.
+
+[11] Opal — app blocking e screen time
+https://opalapp.com/
+Messaggio osservato: «Attention on autopilot»; controllo delle distrazioni,
+focus timer e ricompense visive.
+Da studiare: mostrare il costo concreto delle distrazioni e il beneficio visivo.
+Attenzione: prune non va pubblicizzato come app blocker se non lo è.
+
+[12] Freedom — blocco di siti/app e sessioni di focus
+https://freedom.to/
+Perché compete: risolve il bisogno «voglio smettere di distrarmi», anche se
+non sostituisce direttamente un planner.
+
+[13] Notion, Apple Notes, carta + timer
+https://www.notion.com/
+https://www.apple.com/notes/
+Alternative al prodotto, non tutte competitor dirette. Cercare soltanto
+«best note taking tool» rischia di attirare chi vuole archiviare conoscenza,
+non chi vuole iniziare e finire il lavoro di oggi.
+
+UN ESEMPIO CONCRETO DI CAMPAGNA
+
+[14] Opal — Scrolling Kills
+https://scrollingkills.us/
+Il sito della campagna usa «Scrolling Kills, Opal Saves» e sticker del
+«Focus Club»; dichiara che l'idea nasce dal team Opal nel 2022.
+Da studiare: slogan memorabile, identità di gruppo, oggetto visivo semplice.
+Stato: campagna verificabile, ma NON ho verificato risultati di acquisizione.
+Non copiarne il tono allarmistico senza testarlo sul tuo pubblico.
+
+DOVE TROVARE GLI ADS REALI
+
+[15] Meta Ad Library
+https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q=Structured&search_type=keyword_unordered
+Cerca anche Sunsama, Forest, Opal, TickTick, Todoist e relative pagine ufficiali.
+Utile per: hook, video, CTA, varianti e date di avvio degli annunci visibili.
+Accesso automatico bloccato qui; serve verifica manuale. La durata di un ad
+NON dimostra che sia profittevole; per gli ads commerciali non hai normalmente
+CPA/ROAS e conversioni da confrontare.
+
+[16] Google Ads Transparency Center
+https://adstransparency.google.com/
+Cerca gli inserzionisti per nome/dominio e imposta mercato e periodo.
+Utile per vedere creatività pubblicate, non la loro redditività.
+
+[17] TikTok Creative Center — Top Ads
+https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en
+Cerca brand e termini come productivity, planner, focus, study.
+Utile per formati e segnali di performance disponibili sulla piattaforma.
+La selezione non copre tutti gli ads; engagement non equivale a vendite e
+non ho verificato che tutti questi competitor siano presenti.
+
+COME CAPIRE QUALI ADS HANNO DAVVERO FUNZIONATO
+Per ogni annuncio annota: link/ID, brand, paese, data, hook, problema,
+demo, CTA e risultato documentato. Senza risultato scrivi «non disponibile».
+Preferisci case study con periodo, metrica e confronto espliciti; considera
+che quelli pubblicati da brand/piattaforme hanno bias di selezione.
+In questa ricerca non è emerso un vincitore verificato per CPA/ROAS.
+
+
+3. PAROLE E TOPIC: VOICE OF CUSTOMER
+-----------------------------------
+
+SEGNALI GIÀ OSSERVABILI (NON UNA CLASSIFICA DI FREQUENZA)
+
+[18] Recensioni riportate da Structured
+https://structured.app/
+Frasi presenti: «simple clean app», «keep yourself accountable»,
+«I've tried countless planners». Topic: semplicità, accountability,
+stanchezza da cambio continuo di strumenti.
+Limite: testimonianze selezionate dal venditore, non un campione indipendente.
+
+[19] Recensioni riportate da Forest
+https://www.forestapp.cc/
+Frasi presenti: «keep away from my phone», «progress is visualized»,
+«exam year». Topic: telefono, progressi visibili, preparazione agli esami.
+Limite: stessa selezione commerciale; non dimostrano frequenze nel mercato.
+
+RICERCHE REDDIT DA APRIRE MANUALMENTE
+I link seguenti sono punti di partenza, NON thread analizzati.
+
+[20] Troppe app / overwhelm
+https://www.reddit.com/r/productivity/search/?q=overwhelmed%20apps&restrict_sr=1
+Cerca: cosa rende una to-do list pesante e perché le persone abbandonano le app.
+
+[21] Pianificare invece di fare
+https://www.reddit.com/r/productivity/search/?q=planning%20instead%20of%20doing&restrict_sr=1
+Cerca: setup infiniti, procrastinazione tramite organizzazione, bisogno di iniziare.
+
+[22] Costanza
+https://www.reddit.com/r/getdisciplined/search/?q=consistency&restrict_sr=1
+Cerca: quando una routine si interrompe e cosa aiuta a ripartire.
+
+[23] Studio e concentrazione
+https://www.reddit.com/r/GetStudying/search/?q=focus%20phone&restrict_sr=1
+Cerca: esami, distrazioni e circostanze concrete delle sessioni di studio.
+
+[24] Confronti tra tool
+https://www.reddit.com/r/productivity/search/?q=best%20daily%20planner&restrict_sr=1
+https://www.reddit.com/r/NoteTaking/search/?q=best%20note%20taking%20app&restrict_sr=1
+Confronta i bisogni: eseguire priorità oggi vs conservare e ritrovare appunti.
+
+KEYWORD DA VALIDARE, NON «LE PIÙ USATE SU REDDIT»
+Problema: overwhelmed, procrastination, distracted, endless to-do list,
+app hopping, overplanning, can't stay consistent.
+Beneficio: simple, clean, focus, one thing at a time, visible progress,
+accountability, daily routine, actually get things done.
+Topic/format: study with me, Pomodoro, time blocking, daily planning,
+digital minimalism, exam prep. «Lock in» è un'ipotesi creativa da testare,
+non una preferenza dimostrata del tuo target.
+
+Mini-metodo: raccogli 30–50 thread pertinenti, con URL e citazione esatta;
+separa parole degli utenti da quelle dei founder che promuovono app.
+Conta in quanti thread compare ogni tema, senza generalizzare a tutti i giovani.
+
+
+4. PER CHI È PRUNE? TARGET E STILE
+---------------------------------
+
+[25] Pew Research Center — Teens, Social Media and Technology 2024
+https://www.pewresearch.org/internet/2024/12/12/teens-social-media-and-technology-2024/
+In breve: su 1.391 adolescenti USA di 13–17 anni, YouTube, TikTok e Instagram
+sono molto utilizzati; il report descrive anche accesso ai dispositivi.
+Per te: fonti utili per scegliere dove testare video brevi e contenuti studio.
+Limite: dati USA del 2024, non una prova di acquisto, gusto estetico o domanda
+italiana. Non descrivono automaticamente i 18–24enni. Non è l'ultima edizione.
+
+TARGET INIZIALE CONSIGLIATO — IPOTESI, NON RISULTATO DI MERCATO
+18–24 anni, studenti universitari e giovani creator/developer che lavorano
+su laptop, hanno 1–3 priorità importanti e si perdono tra liste e strumenti.
+Job to be done: «So cosa dovrei fare; aiutami a iniziare e portarlo a termine».
+Perché partire qui: coerenza con desktop, sessioni di studio/lavoro e task brevi.
+Da validare: uso reale, disponibilità a pagare, bisogno di mobile e retention.
+
+SEGMENTO SECONDARIO
+Giovani professionisti che vogliono una routine minima, non un project manager.
+Le persone con molte scadenze, riunioni e progetti potrebbero trovare il limite
+di tre task troppo restrittivo: non è un prodotto universale.
+
+TEENS MINORENNI
+Non dedurre «è per la mia età» dal tuo gusto personale. Partire dagli adulti
+semplifica il primo test; se includi minori, verifica privacy, requisiti locali
+e restrizioni delle piattaforme su targeting e pubblicità prima del lancio.
+
+«FIGO» COME MEZZO, NON COME POSIZIONAMENTO
+Testa un'interfaccia pulita, demo veloci e progressi visibili. Confronta:
+A) tono «lock in» / aspirazionale;
+B) tono calmo / «meno caos»;
+C) tono pragmatico / «scegli, inizia, finisci».
+Le fonti sopra non provano che teens e ventenni preferiscano tutti lo stesso stile.
+
+TRE ANGOLI ADS DA TESTARE (COPY ORIGINALE, NON RISULTATI OSSERVATI)
+1. «La tua to-do list cresce. Il lavoro no.»
+   Demo: lista caotica -> tre priorità -> avvio della prima task.
+2. «Tre priorità. Una task alla volta.»
+   Demo: selezione della priorità e timer. Niente promesse di app blocking.
+3. «Non una routine perfetta. Un piccolo passo, oggi.»
+   Demo: completamento e calendario. Valorizzare il ritorno, non il senso di
+   colpa per una streak persa.
+
+VALIDAZIONE MINIMA
+Intervista 5–10 persone del segmento sul loro ultimo episodio reale di
+procrastinazione. Poi testa gli angoli tenendo pubblico e landing comparabili.
+Misura non solo CTR, ma installazione, prima task completata e ritorno a 7 giorni;
+se il prodotto è a pagamento, anche conversione a pagamento e costo acquisizione.
+La ricerca suggerisce ipotesi: solo i tuoi dati possono confermare quali vendono.

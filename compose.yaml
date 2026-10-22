@@ -16,6 +16,7 @@ services:
       - ./src:/app/src:ro
       - ./shared:/app/shared:ro
       - ./index.html:/app/index.html:ro
+      - ./PRIVACY.md:/app/PRIVACY.md:ro
       - ./vite.config.ts:/app/vite.config.ts:ro
       - ./tsconfig.json:/app/tsconfig.json:ro
     cap_drop:

@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { element } from "./dom";
+import { privacyPolicyButton } from "./privacy";
 
 export function supportFooter(): HTMLElement {
   const footer = element("footer", undefined, "support-footer");
@@ -15,6 +16,6 @@ export function supportFooter(): HTMLElement {
       window.alert("Could not open your email app. You can contact me at fornelli.dv@gmail.com.");
     }
   });
-  footer.append("Any problems with the app? Contact me at: ", link);
+  footer.append("Any problems with the app? Contact me at: ", link, " · ", privacyPolicyButton());
   return footer;
 }

@@ -46,8 +46,9 @@ export function main() {
   if (process.argv.slice(2).some((arg) => arg !== "--check")) throw new Error("Only --check is supported; release signing cannot be overridden with extra build flags.");
   const identity = selectIdentity(run("security", ["find-identity", "-v", "-p", "codesigning"], true), process.env.APPLE_SIGNING_IDENTITY);
   validatePublicConfig(process.env);
+  run("npm", ["run", "privacy:check"]);
   if (process.argv.includes("--check")) {
-    console.log("Signing identity and public project configuration are ready.");
+    console.log("Signing identity, public project configuration and privacy template fields are ready.");
     return;
   }
   const config = JSON.stringify({ bundle: {

@@ -88,6 +88,21 @@ for (const size of sizes) {
       }
     });
   }
+  for (const count of [0, 1, 2, 3]) {
+    test(`Tomorrow fits ${size.width}×${size.height} with ${count} long tasks and up to 50 resources each`, async ({ page, backend }) => {
+      await page.setViewportSize(size);
+      const tasks = await seed(backend, count);
+      await backend.db.query("update public.planner_tasks set planned_for = planned_for + 1 where id = any($1::uuid[])", [tasks.map((task) => task.id)]);
+      await open(page);
+      await page.getByRole("navigation").getByRole("button", { name: "Tomorrow", exact: true }).click();
+      await expect(page.locator("#app")).toHaveClass(/single-screen/);
+      await expect(page.locator(".task-list .task")).toHaveCount(count);
+      await fits(page);
+      await taskControlsAlign(page);
+      if (count < 3) await expect(page.getByRole("button", { name: "Add task", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Start focus", exact: true })).toHaveCount(0);
+    });
+  }
   test(`Focus, paused Focus and return to Today fit ${size.width}×${size.height}`, async ({ page, backend }) => {
     await page.setViewportSize(size);
     const tasks = await seed(backend, 3); await backend.call("start_task", { id: tasks[0].id });

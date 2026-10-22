@@ -10,6 +10,7 @@ import { isDayComplete, PLANNER_LIMITS, trackedSeconds } from "./planner";
 import { formatDuration } from "./time";
 import { focusDuration } from "../shared/task-timing";
 import { supportFooter } from "./support";
+import { requirePrivacyAcknowledgement } from "./privacy-onboarding";
 import "./styles.css";
 
 type View = "today" | "focus" | "tomorrow" | "habits" | "profile";
@@ -161,7 +162,7 @@ class PlanningApplication {
     if (this.view === "profile") this.profileButton.setAttribute("aria-current", "page");
     else this.profileButton.removeAttribute("aria-current");
     this.root.dataset.view = this.view;
-    this.root.classList.toggle("single-screen", this.view === "today" || this.view === "focus");
+    this.root.classList.toggle("single-screen", this.view === "today" || this.view === "tomorrow" || this.view === "focus");
     for (const [view, title] of views) {
       const button = this.button(title, () => {
         this.pauseReasonOpen = false;
@@ -674,7 +675,11 @@ class PlanningApplication {
 }
 
 const root = document.getElementById("app")!;
-const client = new PlanningClient();
-void authenticate(root, client).then(async (account) => {
+async function start(): Promise<void> {
+  // Present the notice before touching saved credentials or contacting Supabase.
+  await requirePrivacyAcknowledgement(root);
+  const client = new PlanningClient();
+  const account = await authenticate(root, client);
   if (account?.email) await new PlanningApplication(root, client, account.email).mount();
-});
+}
+void start();

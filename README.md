@@ -27,11 +27,19 @@ Install Node.js 22.12+ (or current LTS), a stable Rust toolchain, and the [Tauri
    npm run desktop
    ```
 
-3. Enter your email, request a code, and enter the code from your inbox. The first sign-in creates an account. Use the same account on another device to access the same planner.
+3. Review the first-launch Privacy Policy and acknowledge the notice to continue. Enter your email, request a code, and enter the code from your inbox. The first sign-in creates an account. Use the same account on another device to access the same planner.
 
 The URL and public key may be embedded at **Rust compile time** using the same environment variables. Runtime environment values override compiled defaults. This lets packaged apps work without terminal configuration. Rust does not automatically load `.env` files. Never build/distribute with a service-role key, `sb_secret_` key, or OpenAI key. Public-key validation rejects privileged keys at runtime, but cannot undo accidentally embedding a secret in an artifact.
 
 `npm run dev` serves a browser preview only. Authentication and cloud IPC require the desktop runtime. Production CSP does not allow arbitrary webview network requests; Rust performs authenticated requests.
+
+## Privacy and first launch
+
+[PRIVACY.md](PRIVACY.md) is the bundled GDPR-structured privacy notice, tailored to the app's actual storage, providers and optional AI. **It is a template, not a compliance guarantee. Complete its marked controller, processor, transfer and retention fields and follow [the privacy release checklist](docs/privacy-release-checklist.md) before collecting real user data.** `npm run privacy:check` rejects unfinished fields or mismatched notice versions; signed macOS preflight/releases run it as well. Development builds still work with a clearly marked template warning.
+
+The first-launch **Privacy & agreements** screen appears before authentication, saved-session/Keychain restoration, sync or AI checks. The required checkbox starts unchecked. It acknowledges the notice only; it is not blanket consent. **Not now** leaves account services untouched. The device-local acknowledgement stores only the notice version and time, survives sign-out, and is requested again when the version changes. Storage failures keep the user at the gate. A **Privacy Policy** footer button opens the full policy offline on every screen, including during focus.
+
+AI consent remains separate, account-level and off by default for new accounts. Privacy acknowledgement never enables AI or changes a returning account's AI preference. Manual access/export/deletion requests go to the existing support/privacy email; there is no in-app account-deletion/export button. The operator must implement and test the manual rights and provider-retention processes in the checklist.
 
 ## Authentication and storage
 

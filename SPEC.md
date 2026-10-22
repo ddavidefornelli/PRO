@@ -28,6 +28,12 @@ Unfinished tasks can be carried forward, rewritten, or dropped.
 - Becomes due Sunday at 4:00 p.m. in the device's local timezone while the app is open, or catches up with the latest due week on the next launch.
 - Overview also offers “Review this week so far”: an on-demand Monday-through-today preview, separate from scheduled reports, shown for the current app session only. Requires consent and shared budget availability; limited to three attempts per UTC day, at least ten minutes apart. Failures count.
 
+## Privacy and first launch
+
+Show the bundled Privacy Policy and an unchecked notice-acknowledgement checkbox before first-launch sign-in or saved-session restoration. Offer “Not now” without contacting account services. Persist only the notice version and time on this device; a changed version or corrupt/missing record shows the notice again. A failed local save must not proceed. This is notice acknowledgement, not blanket consent or a waiver of GDPR rights. Optional AI remains a separate account-level opt-in, off by default for new accounts. Make the full policy available offline from every screen, including during focus and before sign-in.
+
+`PRIVACY.md` uses a GDPR transparency template tailored to the actual app. Complete marked legal/operator/provider/retention/transfer fields and review `docs/privacy-release-checklist.md` before distribution. Manual rights/export/deletion requests use the support email; automated deletion/export UI remains unimplemented.
+
 ## Interface
 Four planner views: **Today, Focus, Tomorrow (only if today's tasks are finished), Overview (daily completion grid and saved weekly AI reflections)**.
 

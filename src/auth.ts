@@ -125,7 +125,7 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
     return digit;
   }
   resizeCode(DEFAULT_CODE_LENGTH);
-  codeLabel.append(codeBoxes, node("p", "Enter the 6–10 digit code from your email.", "muted"));
+  codeLabel.append(codeBoxes);
   codeLabel.hidden = true;
   codeLabel.disabled = true;
   const submit = node("button", "Send sign-in code");
@@ -133,9 +133,6 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
   const resend = node("button", "Use another email / resend code");
   resend.type = "button";
   resend.hidden = true;
-  const reconnect = node("button", "Retry connection");
-  reconnect.type = "button";
-  reconnect.addEventListener("click", () => window.location.reload());
   const alert = node("p", initialError, "error");
   alert.setAttribute("role", "alert");
   const notice = node("p");
@@ -181,7 +178,7 @@ export async function authenticate(root: HTMLElement, client: PlanningClient): P
     email.focus();
   });
   form.append(emailLabel, codeLabel, submit, resend);
-  section.append(node("h1", "Sign in to prune"), node("p", "Sign-in requires internet. Your planner syncs to Supabase; a local snapshot and pending changes are also stored on this device, unencrypted in app storage. Attached file contents are never uploaded."), form, notice, alert, reconnect);
+  section.append(node("h1", "Sign in to prune"), form, notice, alert);
   root.replaceChildren(section, supportFooter());
   return null;
 }

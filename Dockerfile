@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=/home/node/.npm,uid=1000,gid=1000 npm ci
 
 # Browser-only development; native Tauri runs on the host.
 FROM dependencies AS development
-COPY --chown=node:node index.html tsconfig.json vite.config.ts ./
+COPY --chown=node:node index.html tsconfig.json vite.config.ts PRIVACY.md ./
 COPY --chown=node:node src/ ./src/
 COPY --chown=node:node shared/ ./shared/
 EXPOSE 1420

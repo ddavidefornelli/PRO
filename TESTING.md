@@ -16,18 +16,18 @@ Focused commands: `test:unit`, `test:queue`, `test:calendar`, `test:backend`, `t
 
 ## Verification results
 
-The suite contains **691 tests**. See the [beta readiness audit](docs/beta-readiness.md) for the latest user-flow findings and release checklist.
+The latest run passed **778 tests**. See the [beta readiness audit](docs/beta-readiness.md) for user-flow findings and the [privacy release checklist](docs/privacy-release-checklist.md) for the remaining legal/deployment work.
 
 | Layer | Tests | What actually executes |
 | --- | ---: | --- |
-| Frontend logic / persistence | 125 | TypeScript queue, calendar, stats and shared planner/time logic; controlled storage, clocks, transport and lock fixtures |
-| Backend / integrations | 333 | All eight actual SQL migrations in PGlite, RLS/privileges, Edge validation/handler/platform/provider code, queue-to-SQL and complete Edge-to-SQL pipelines |
+| Frontend logic / persistence | 134 | TypeScript queue, calendar, stats, privacy acknowledgement/release checks and shared planner/time logic; controlled storage, clocks, transport and lock fixtures |
+| Backend / integrations | 333 | Repository SQL migrations in PGlite, RLS/privileges, Edge validation/handler/platform/provider code, queue-to-SQL and complete Edge-to-SQL pipelines |
 | Native | 53 | Rust auth/session and HTTP adapter against localhost TCP fixtures; real temporary files and Unix permissions/symlinks; in-memory credentials |
-| Browser workflows | 180 | 90 scenarios in **both Chromium and WebKit**, real application UI, localStorage and Web Locks, actual migrated SQL behind fixture native IPC |
+| Browser workflows | 258 | 129 scenarios in **both Chromium and WebKit**, real application UI, localStorage and Web Locks, actual migrated SQL behind fixture native IPC |
 
-The browser stress command repeats each scenario three times (**540 executions**, no automatic retries). The SQL command storm performs **400 seeded actions**, checking invariants after every success/rejection. Independent timer oracles check **100 work/pause segments for each of four seeds**. Separate tests race twelve queue instances, and two real browser windows exercise shared storage and Web Locks.
+The browser stress command repeats each scenario three times (**774 executions**, no automatic retries). The SQL command storm performs **400 seeded actions**, checking invariants after every success/rejection. Independent timer oracles check **100 work/pause segments for each of four seeds**. Separate tests race twelve queue instances, and two real browser windows exercise shared storage and Web Locks.
 
-Node coverage measured with `test:coverage`: **89.47% lines / 98.00% branches** across the loaded modules. All four weekly-review backend modules have **100% line coverage**; the queue has **98.10% line coverage**. This is **not whole-application coverage**: browser-only entrypoints and Rust are not instrumented by that command, and the shared DOM helpers and calendar renderer are exercised by browser tests rather than the Node coverage run.
+Previously measured Node coverage with `test:coverage` (not remeasured for the privacy additions): **89.47% lines / 98.00% branches** across the loaded modules. All four weekly-review backend modules have **100% line coverage**; the queue has **98.10% line coverage**. This is **not whole-application coverage**: browser-only entrypoints and Rust are not instrumented by that command, and the shared DOM helpers and calendar renderer are exercised by browser tests rather than the Node coverage run.
 
 The cleanup adds explicit tests for shared day/time calculations, projection/acknowledgement immutability, and batched snapshot replay without changing durable state. Queue storage version 1, retry/locking behavior and server protocols remain unchanged. Three stale browser scenarios (six failures across both engines before this refactor) now assert the existing date heading and Escape-preserved pause dialog behavior; the UI was not changed to satisfy the old expectations.
 
@@ -57,6 +57,14 @@ The cleanup adds explicit tests for shared day/time calculations, projection/ack
 - Quota limits, hourly backoff, immutable cache, lease expiry/rotation, consent changes during generation, operational input cleanup and 52-review history.
 - Full handler → authenticated platform adapter → real service-role SQL RPCs → fixture provider → durable SQL review/cache, plus provider failure and mid-flight consent revocation.
 - Native malformed/truncated/oversized HTTP bodies, the exact 8 MiB response boundary, rejected redirects and non-JSON Auth errors.
+
+### Privacy notice and first launch
+
+- Unchecked notice acknowledgement before authentication/session restoration, queue replay or AI checks; “Not now” and opening/closing the bundled policy do not access an account.
+- Current version/time persist across reload, sign-in and sign-out; old/corrupt/missing records show the notice again. Blocked storage and failed writes stay at a recoverable gate, without changing planner data.
+- Notice acknowledgement never enables AI or changes an existing account's AI preference. AI consent remains a separate account setting.
+- Full policy is available without a connection or account, during a running timer, and at small window sizes with bounded internal scrolling, keyboard close/focus restoration and literal text rendering.
+- The release check rejects unfinished legal fields and version mismatches. It is expected to fail until the actual operator/provider details in `PRIVACY.md` are completed; passing software tests is not evidence of GDPR compliance.
 
 ### Native resources and browser UI
 

@@ -32,6 +32,8 @@ npm run desktop:mac:check
 npm run desktop:mac:release
 ```
 
+Both commands run `npm run privacy:check` and refuse unfinished operator fields or a mismatched notice version. Complete [PRIVACY.md](../PRIVACY.md) and the [privacy release checklist](privacy-release-checklist.md) before release; this template check is not legal certification. Ordinary development builds remain available.
+
 No unsigned fallback is permitted. The output is:
 
 ```text

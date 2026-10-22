@@ -21,6 +21,29 @@ body { margin: 0; }
 .support-footer { flex: none; margin-top: 16px; color: var(--muted); font-size: 12px; line-height: 20px; text-align: center; }
 .support-footer a { color: #70b7ff; text-decoration: underline; text-underline-offset: 3px; }
 .support-footer a:hover { color: #a5d2ff; }
+.privacy-policy-button { padding: 0; border: 0; border-radius: 2px; background: transparent; color: #70b7ff; font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.privacy-policy-button:hover:not(:disabled) { background: transparent; color: #a5d2ff; }
+.privacy-onboarding { max-width: 680px; margin: clamp(12px, 4vh, 48px) auto; }
+.privacy-onboarding > h1 { margin-top: 0; }
+.privacy-onboarding > h1:focus { outline: none; }
+.privacy-summary { display: grid; gap: 10px; padding-left: 22px; font-size: 14px; line-height: 1.5; }
+.privacy-agreements { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.privacy-acknowledgement { display: flex; align-items: flex-start; gap: 12px; color: inherit; font-size: 15px; line-height: 1.6; cursor: pointer; }
+.privacy-acknowledgement input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
+.privacy-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.privacy-onboarding > .privacy-policy-button { margin-right: 16px; }
+.privacy-dialog { width: min(820px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 24px 80px #0008; }
+.privacy-dialog[open] { display: flex; flex-direction: column; }
+.privacy-dialog::backdrop { background: #000a; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.privacy-dialog-header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.privacy-dialog-header h2 { margin: 0; font-size: 20px; }
+.privacy-dialog-header button { font-size: 13px; }
+.privacy-policy-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 24px 24px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.privacy-policy-content h3 { margin: 28px 0 12px; font-size: 18px; }
+.privacy-policy-content li { margin-block: 12px; }
+.privacy-policy-content ul { padding-left: 22px; }
+.privacy-template-warning { flex: none; margin: 0; padding: 12px 20px; color: #ffd18a; background: #ff9f0a12; font-size: 12px; }
+@media (max-height: 650px) { .privacy-onboarding { margin-block: 0; } }
 .startup-loading { min-height: calc(100dvh - 100px); display: grid; place-items: center; }
 .startup-ring { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-right-color: var(--accent); border-radius: 50%; animation: startup-spin 900ms linear infinite; }
 @keyframes startup-spin { to { transform: rotate(360deg); } }
@@ -282,7 +305,7 @@ textarea { resize: vertical; }
   nav button { padding: 10px 8px; font-size: 12px; }
 }
 
-/* Today and Focus use the window's available height, not a scrolling document. */
+/* Today, Tomorrow and Focus use the window's available height, not a scrolling document. */
 body:has(#app.single-screen) { overflow: hidden; }
 #app[data-view] { --app-padding-y: clamp(12px, 3dvh, 24px); padding-block: var(--app-padding-y); }
 #app[data-view] > .account-bar { margin-bottom: 12px; }
@@ -304,7 +327,7 @@ body:has(#app.single-screen) { overflow: hidden; }
 .single-screen > nav { flex: none; }
 .single-screen > nav button { padding-block: 9px; }
 .single-screen > main { flex: 1; min-height: 0; padding-top: clamp(12px, 2.5dvh, 24px); }
-.single-screen[data-view="today"] > main { display: flex; flex-direction: column; }
+.single-screen:is([data-view="today"], [data-view="tomorrow"]) > main { display: flex; flex-direction: column; }
 .single-screen .plan-heading { flex: none; }
 .single-screen .task-list { flex: 0 1 auto; min-height: 0; grid-auto-rows: minmax(0, 1fr); margin-block: clamp(24px, 4dvh, 36px) 16px; }
 .single-screen .task-list:empty { margin-bottom: 0; }

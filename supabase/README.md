@@ -11,6 +11,7 @@ Create a Supabase project and select an appropriate data region.
 In the hosted **Authentication** settings:
 
 - Enable the email provider and new-user signups.
+- Under **Authentication → URL Configuration → Redirect URLs**, add `https://www.prune.win` and `https://localhost:5173`. These exact HTTPS URLs are also in the local Auth redirect allowlist.
 - Enable email confirmation; disable anonymous sign-in and unused providers.
 - Use a numeric email OTP (the local configuration uses 6 digits and a 10-minute expiry).
 - Edit the **Magic Link** email template to display `{{ .Token }}`, for example:
@@ -146,6 +147,8 @@ npx supabase functions deploy weekly-review
 ```
 
 The Edge runtime supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`. Only `OPENAI_API_KEY` and optional `ALLOWED_ORIGINS` need your configuration. Never copy privileged keys into Vite variables, desktop configuration, installers, Git, or chat.
+
+The default Edge Function CORS allowlist includes `https://www.prune.win` and `https://localhost:5173`, alongside the existing desktop origins. Deploy `weekly-review` to apply code changes to the hosted function. If the hosted `ALLOWED_ORIGINS` secret is set, it replaces the defaults: add both URLs to that comma-separated value while preserving existing origins. HTTPS and HTTP origins are distinct.
 
 Keep `verify_jwt = false` for this function. This disables the legacy gateway JWT check, **not application authentication**: the function validates every bearer token with `/auth/v1/user`, requires an email identity and rejects anonymous sessions before accessing any planner data.
 

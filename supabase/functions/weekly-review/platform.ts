@@ -70,7 +70,7 @@ export function platformDependencies(config: Config, fetcher: typeof fetch = fet
       await rpc<boolean>(preview ? "fail_review_preview" : "fail_weekly_review", { p_id: id, p_lease_token: token });
     },
     now: () => new Date(),
-    allowedOrigins: new Set((config.allowedOrigins ?? "tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:1420,http://127.0.0.1:1420")
+    allowedOrigins: new Set((config.allowedOrigins ?? "tauri://localhost,http://tauri.localhost,https://tauri.localhost,http://localhost:1420,http://127.0.0.1:1420,https://www.prune.win,https://localhost:5173")
       .split(",").map((origin) => origin.trim()).filter(Boolean)),
   };
 }

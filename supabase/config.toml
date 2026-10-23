@@ -20,6 +20,7 @@ port = 54323
 
 [auth]
 site_url = "http://localhost:1420"
+additional_redirect_urls = ["https://www.prune.win", "https://localhost:5173"]
 enable_signup = true
 enable_anonymous_sign_ins = false
 

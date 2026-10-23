@@ -6,6 +6,17 @@ import { platformDependencies } from "../../supabase/functions/weekly-review/pla
 const config = { url: "https://project.supabase.co/", publicKey: "public-project-key", serviceKey: "server-only-key", openAiKey: "openai-server-secret" };
 const user = "00000000-0000-4000-8000-000000000001";
 
+test("platform: default CORS origins include production and HTTPS development", () => {
+  const { allowedOrigins } = platformDependencies(config);
+  for (const origin of ["https://www.prune.win", "https://localhost:5173", "http://localhost:1420", "tauri://localhost"]) {
+    assert.ok(allowedOrigins.has(origin), origin);
+  }
+  assert.ok(!allowedOrigins.has("https://www.prune.win.evil.test"));
+  assert.ok(!allowedOrigins.has("http://localhost:5173"));
+  const custom = platformDependencies({ ...config, allowedOrigins: "https://custom.example" });
+  assert.deepEqual([...custom.allowedOrigins], ["https://custom.example"]);
+});
+
 test("platform: verifies email sessions with Auth and returns only its verified user ID", async () => {
   const platform = platformDependencies(config, async (url, init) => {
     assert.equal(url, "https://project.supabase.co/auth/v1/user");
